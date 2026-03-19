@@ -119,6 +119,9 @@ resultados.forEach(r=>{
     const dyMensal = (provento / preco) * 100
     const dyAnual = dyMensal * 12
 
+    const rendimento5000 = (dyMensal / 100) * 5000
+    const rendimento10000 = (dyMensal / 100) * 10000
+
     let classe = ""
 
     if(r.pvpNumero > 1){
@@ -137,6 +140,8 @@ resultados.forEach(r=>{
 <td>${r.ultimoProvento}</td>
 <td>${dyMensal.toFixed(2)}%</td>
 <td>${dyAnual.toFixed(2)}%</td>
+<td>R$ ${rendimento5000.toFixed(2)}</td>
+<td>R$ ${rendimento10000.toFixed(2)}</td>
 </tr>
 `
 
@@ -217,6 +222,8 @@ background:#fff3b0 !important;
 <th>Último Provento</th>
 <th>DY Mensal</th>
 <th>DY Anual</th>
+<th>R$ 5000 / mês</th>
+<th>R$ 10.000 / mês</th>
 </tr>
 
 ${linhas}
