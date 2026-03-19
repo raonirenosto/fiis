@@ -118,6 +118,11 @@ resultados.forEach(r=>{
     const rendimento5000 = (dyMensal / 100) * 5000
     const rendimento10000 = (dyMensal / 100) * 10000
 
+    // ⭐ SCORE (DY mais importante)
+    const score = (dyAnual / 100) * 0.7 + (1 / r.pvpNumero) * 0.3
+
+    r.score = score
+
     let classe = ""
 
     if(r.pvpNumero > 1){
@@ -136,6 +141,7 @@ resultados.forEach(r=>{
 <td>${r.ultimoProvento}</td>
 <td>${dyMensal.toFixed(2)}%</td>
 <td>${dyAnual.toFixed(2)}%</td>
+<td>${score.toFixed(3)}</td>
 <td>R$ ${rendimento5000.toFixed(2)}</td>
 <td>R$ ${rendimento10000.toFixed(2)}</td>
 </tr>
@@ -163,7 +169,7 @@ color:#1a3a6e;
 
 table{
 border-collapse:collapse;
-width:1100px;
+width:1200px;
 margin:auto;
 font-size:15px;
 box-shadow:0 4px 10px rgba(0,0,0,0.1);
@@ -228,8 +234,9 @@ background:#fff3b0 !important;
 <th onclick="ordenarTabela(4)">Último Provento <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(5)">DY Mensal <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(6)">DY Anual <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(7)">R$ 5.000 <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(8)">R$ 10.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(7)">Score <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(8)">R$ 5.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(9)">R$ 10.000 <span class="seta">↕</span></th>
 </tr>
 </thead>
 
@@ -312,7 +319,13 @@ async function main(){
 
     }
 
-    resultados.sort((a,b)=> a.pvpNumero - b.pvpNumero)
+    resultados.forEach(r=>{
+        const pvp = r.pvpNumero
+        const dy = parseFloat(r.dy?.replace("%","").replace(",","."))
+        r.score = (dy / 100) * 0.7 + (1 / pvp) * 0.3
+    })
+
+    resultados.sort((a,b)=> b.score - a.score)
 
     gerarHtml(resultados)
 
