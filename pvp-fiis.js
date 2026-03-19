@@ -63,9 +63,7 @@ async function processarFii(ticker){
             const primeiraColuna = $(el).find("td").first().text().trim()
 
             if(primeiraColuna === "Rendimento" && !ultimoProvento){
-
                 ultimoProvento = $(el).find("td").last().text().trim()
-
             }
 
         })
@@ -89,10 +87,8 @@ Ultimo Provento: ${ultimoProvento}`
         }
 
     }catch(e){
-
         console.log("Erro:", ticker)
         return null
-
     }
 
 }
@@ -177,6 +173,15 @@ th{
 background:#4a90e2;
 color:white;
 padding:12px;
+cursor:pointer;
+position: sticky;
+top: 0;
+z-index: 2;
+}
+
+.seta{
+margin-left:5px;
+font-size:12px;
 }
 
 td{
@@ -212,23 +217,78 @@ background:#fff3b0 !important;
 
 <h1>Scanner de FIIs</h1>
 
-<table>
+<table id="tabelaFiis">
 
+<thead>
 <tr>
-<th>Ticker</th>
-<th>Preço</th>
-<th>P/VP</th>
-<th>DY 12m</th>
-<th>Último Provento</th>
-<th>DY Mensal</th>
-<th>DY Anual</th>
-<th>R$ 5000 / mês</th>
-<th>R$ 10.000 / mês</th>
+<th onclick="ordenarTabela(0)">Ticker <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(1)">Preço <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(2)">P/VP <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(3)">DY 12m <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(4)">Último Provento <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(5)">DY Mensal <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(6)">DY Anual <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(7)">R$ 5.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(8)">R$ 10.000 <span class="seta">↕</span></th>
 </tr>
+</thead>
 
+<tbody>
 ${linhas}
+</tbody>
 
 </table>
+
+<script>
+
+let ordemAsc = true
+let colunaAtual = -1
+
+function ordenarTabela(coluna){
+
+    const tabela = document.getElementById("tabelaFiis")
+    const tbody = tabela.tBodies[0]
+    const linhas = Array.from(tbody.rows)
+    const headers = tabela.querySelectorAll("th")
+
+    headers.forEach(th=>{
+        th.querySelector(".seta").innerText = "↕"
+    })
+
+    if(coluna === colunaAtual){
+        ordemAsc = !ordemAsc
+    } else {
+        ordemAsc = true
+        colunaAtual = coluna
+    }
+
+    linhas.sort((a,b)=>{
+
+        let valA = a.cells[coluna].innerText
+        let valB = b.cells[coluna].innerText
+
+        valA = valA.replace("R$","").replace("%","").replace(/\\./g,"").replace(",",".")
+        valB = valB.replace("R$","").replace("%","").replace(/\\./g,"").replace(",",".")
+        
+        const numA = parseFloat(valA)
+        const numB = parseFloat(valB)
+
+        if(!isNaN(numA) && !isNaN(numB)){
+            return ordemAsc ? numA - numB : numB - numA
+        }
+
+        return ordemAsc 
+            ? valA.localeCompare(valB) 
+            : valB.localeCompare(valA)
+    })
+
+    const seta = headers[coluna].querySelector(".seta")
+    seta.innerText = ordemAsc ? "↑" : "↓"
+
+    linhas.forEach(linha => tbody.appendChild(linha))
+}
+
+</script>
 
 </body>
 </html>
@@ -261,7 +321,6 @@ async function main(){
         fs.unlinkSync(`${fii}.txt`)
     })
 
-    // remove o CSV também
     if (fs.existsSync("dados.csv")) {
         fs.unlinkSync("dados.csv")
     }
