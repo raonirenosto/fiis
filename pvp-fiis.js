@@ -254,6 +254,11 @@ async function main(){
         fs.unlinkSync(`${fii}.txt`)
     })
 
+    // remove o CSV também
+    if (fs.existsSync("dados.csv")) {
+        fs.unlinkSync("dados.csv")
+    }
+
 }
 
 main()
