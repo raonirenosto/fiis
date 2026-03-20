@@ -3,85 +3,77 @@ const cheerio = require("cheerio")
 const fs = require("fs")
 
 const fiis = [
-"FATN11",
-"TRXF11",
-"GARE11",
-"VISC11",
-"PMLL11",
-"TGAR11",
-"XPLG11",
-"HGLG11",
-"KNRI11",
-"BRCO11",
-"XPML11",
-"BTLG11",
-"PVBI11",
-"HGRU11"
+"FATN11","TRXF11","GARE11","VISC11","PMLL11","TGAR11",
+"XPLG11","HGLG11","KNRI11","BRCO11","XPML11","BTLG11","PVBI11","HGRU11"
 ]
+
+function lerProporcoes(){
+    const mapa = {}
+
+    if(!fs.existsSync("lista_proporcao.txt")) return mapa
+
+    const linhas = fs.readFileSync("lista_proporcao.txt","utf-8")
+        .split(/\r?\n/)
+        .map(l => l.trim().toUpperCase())
+        .filter(l => l)
+
+    let tickerAtual = null
+
+    linhas.forEach(linha =>{
+        if(/^[A-Z]{4}\d{2}$/.test(linha)){
+            tickerAtual = linha
+        }
+        else if(linha.includes("%") && tickerAtual){
+            mapa[tickerAtual] = linha
+            tickerAtual = null
+        }
+    })
+
+    return mapa
+}
+
+function lerExcluidos(){
+    if(!fs.existsSync("lista_excluidos.txt")) return new Set()
+
+    return new Set(
+        fs.readFileSync("lista_excluidos.txt","utf-8")
+        .split(/\r?\n/)
+        .map(l => l.trim().toUpperCase())
+        .filter(l => l)
+    )
+}
 
 async function processarFii(ticker){
 
     const url = `https://statusinvest.com.br/fundos-imobiliarios/${ticker.toLowerCase()}`
 
     try{
+        const response = await axios.get(url,{ headers:{ "User-Agent":"Mozilla/5.0" } })
+        const $ = cheerio.load(response.data)
 
-        const response = await axios.get(url,{
-            headers:{ "User-Agent":"Mozilla/5.0" }
-        })
-
-        const html = response.data
-
-        fs.writeFileSync(`${ticker}.html`, html)
-
-        const $ = cheerio.load(html)
-
-        let pvp = null
-        let dy = null
-        let precoAtual = null
-        let ultimoProvento = null
+        let pvp=null, dy=null, precoAtual=null, ultimoProvento=null
 
         $("div").each((i,el)=>{
-
             const title = $(el).find(".title").text().trim()
 
-            if(title.includes("P/VP")){
-                pvp = $(el).find("strong.value").text().trim()
-            }
-
-            if($(el).attr("title") === "Dividend Yield com base nos últimos 12 meses"){
+            if(title.includes("P/VP")) pvp = $(el).find("strong.value").text().trim()
+            if($(el).attr("title")==="Dividend Yield com base nos últimos 12 meses")
                 dy = $(el).parent().find("strong.value").text().trim()
-            }
-
-            if(title.includes("Valor atual")){
+            if(title.includes("Valor atual"))
                 precoAtual = $(el).find("strong.value").text().trim()
-            }
-
         })
 
         $("tr").each((i,el)=>{
-
-            const primeiraColuna = $(el).find("td").first().text().trim()
-
-            if(primeiraColuna === "Rendimento" && !ultimoProvento){
+            const primeira = $(el).find("td").first().text().trim()
+            if(primeira==="Rendimento" && !ultimoProvento)
                 ultimoProvento = $(el).find("td").last().text().trim()
-            }
-
         })
-
-        fs.writeFileSync(
-`${ticker}.txt`,
-`Ticker: ${ticker}
-Preço Atual: ${precoAtual}
-PVP: ${pvp}
-DY: ${dy}
-Ultimo Provento: ${ultimoProvento}`
-        )
 
         return {
             ticker,
             precoAtual,
-            pvpTexto: pvp,
-            pvpNumero: parseFloat(pvp?.replace(",", ".")),
+            pvpTexto:pvp,
+            pvpNumero:parseFloat(pvp?.replace(",", ".")),
             dy,
             ultimoProvento
         }
@@ -90,49 +82,53 @@ Ultimo Provento: ${ultimoProvento}`
         console.log("Erro:", ticker)
         return null
     }
-
 }
 
-function gerarHtml(resultados){
+function gerarHtml(resultados, proporcoes, excluidos){
 
-let linhas = ""
+    let linhas=""
 
-resultados.forEach(r=>{
+    const limite = 100 / 13
 
-    const preco = parseFloat(
-        r.precoAtual
-        .replace("R$","")
-        .replace(/\./g,"")
-        .replace(",",".")
-    )
+    const candidatosTop = resultados.filter(r=>{
+        const prop = proporcoes[r.ticker]?.replace("%","").replace(",",".")
+        const num = parseFloat(prop)
+        return !num || num < limite
+    })
 
-    const provento = parseFloat(
-        r.ultimoProvento
-        .replace(/\./g,"")
-        .replace(",",".")
-    )
+    const top2 = [...candidatosTop]
+        .sort((a,b)=> b.score - a.score)
+        .slice(0,2)
+        .map(r=>r.ticker)
 
-    const dyMensal = (provento / preco) * 100
-    const dyAnual = dyMensal * 12
+    resultados.forEach(r=>{
 
-    const rendimento5000 = (dyMensal / 100) * 5000
-    const rendimento10000 = (dyMensal / 100) * 10000
+        const preco = parseFloat(r.precoAtual.replace("R$","").replace(/\./g,"").replace(",","."))
+        const provento = parseFloat(r.ultimoProvento.replace(/\./g,"").replace(",","."))
+        const dyMensal = (provento / preco) * 100
+        const dyAnual = dyMensal * 12
 
-    // ⭐ SCORE (DY mais importante)
-    const score = (dyAnual / 100) * 0.7 + (1 / r.pvpNumero) * 0.3
+        const rendimento5000 = (dyMensal / 100) * 5000
+        const rendimento10000 = (dyMensal / 100) * 10000
 
-    r.score = score
+        const proporcaoStr = proporcoes[r.ticker.toUpperCase()] || "-"
 
-    let classe = ""
+        let classe = ""
 
-    if(r.pvpNumero > 1){
-        classe = "caro"
-    }
-    else if(dyAnual < 8){
-        classe = "baixoDy"
-    }
+        if(excluidos.has(r.ticker.toUpperCase())){
+            classe = "excluido"
+        }
+        else if(top2.includes(r.ticker)){
+            classe = "top"
+        }
+        else if(r.pvpNumero > 1){
+            classe = "caro"
+        }
+        else if(dyAnual < 8){
+            classe = "baixoDy"
+        }
 
-    linhas += `
+        linhas += `
 <tr class="${classe}">
 <td>${r.ticker}</td>
 <td>${r.precoAtual}</td>
@@ -141,82 +137,44 @@ resultados.forEach(r=>{
 <td>${r.ultimoProvento}</td>
 <td>${dyMensal.toFixed(2)}%</td>
 <td>${dyAnual.toFixed(2)}%</td>
-<td>${score.toFixed(3)}</td>
+<td>${r.score.toFixed(3)}</td>
+<td>${proporcaoStr}</td>
 <td>R$ ${rendimento5000.toFixed(2)}</td>
 <td>R$ ${rendimento10000.toFixed(2)}</td>
 </tr>
 `
+    })
 
-})
-
-const html = `
+    const html = `
 <html>
 <head>
 <meta charset="UTF-8">
-
 <style>
 
-body{
-font-family: Arial;
-background:#f4f8ff;
-padding:40px;
-}
+body{font-family: Arial;background:#f4f8ff;padding:40px;}
 
-h1{
-text-align:center;
-color:#1a3a6e;
-}
-
-table{
-border-collapse:collapse;
-width:1200px;
-margin:auto;
-font-size:15px;
-box-shadow:0 4px 10px rgba(0,0,0,0.1);
-}
+table{border-collapse:collapse;width:1300px;margin:auto;}
 
 th{
 background:#4a90e2;
 color:white;
 padding:12px;
 cursor:pointer;
-position: sticky;
-top: 0;
-z-index: 2;
 }
 
-.seta{
-margin-left:5px;
-font-size:12px;
-}
+.seta{margin-left:5px;font-size:12px;}
 
-td{
-padding:10px;
-text-align:center;
-}
+td{padding:10px;text-align:center;}
 
-tr:nth-child(even){
-background:#e6f0ff;
-}
+tr:nth-child(even){background:#e6f0ff;}
+tr:nth-child(odd){background:#ffffff;}
 
-tr:nth-child(odd){
-background:#ffffff;
-}
-
-tr:hover{
-background:#cfe2ff;
-}
-
-.caro{
-background:#ffd6d6 !important;
-}
-
-.baixoDy{
-background:#fff3b0 !important;
-}
+.top{background:#00e676 !important;font-weight:bold;}
+.caro{background:#ffd6d6 !important;}
+.baixoDy{background:#fff3b0 !important;}
+.excluido{text-decoration:line-through;color:#888;background:#f0f0f0 !important;}
 
 </style>
-
 </head>
 
 <body>
@@ -235,8 +193,9 @@ background:#fff3b0 !important;
 <th onclick="ordenarTabela(5)">DY Mensal <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(6)">DY Anual <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(7)">Score <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(8)">R$ 5.000 <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(9)">R$ 10.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(8)">% Carteira <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(9)">R$ 5.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(10)">R$ 10.000 <span class="seta">↕</span></th>
 </tr>
 </thead>
 
@@ -301,43 +260,35 @@ function ordenarTabela(coluna){
 </html>
 `
 
-fs.writeFileSync("resultado.html",html)
-
+    fs.writeFileSync("resultado.html", html)
 }
 
 async function main(){
 
+    const proporcoes = lerProporcoes()
+    const excluidos = lerExcluidos()
+
     const resultados = []
 
     for(const fii of fiis){
-
-        const dados = await processarFii(fii)
-
-        if(dados){
-            resultados.push(dados)
-        }
-
+        const d = await processarFii(fii)
+        if(d) resultados.push(d)
     }
 
     resultados.forEach(r=>{
-        const pvp = r.pvpNumero
         const dy = parseFloat(r.dy?.replace("%","").replace(",","."))
-        r.score = (dy / 100) * 0.7 + (1 / pvp) * 0.3
+        let score = (dy / 100) * 0.7 + (1 / r.pvpNumero) * 0.3
+
+        if(excluidos.has(r.ticker.toUpperCase())){
+            score = 0
+        }
+
+        r.score = score
     })
 
     resultados.sort((a,b)=> b.score - a.score)
 
-    gerarHtml(resultados)
-
-    fiis.forEach(fii=>{
-        fs.unlinkSync(`${fii}.html`)
-        fs.unlinkSync(`${fii}.txt`)
-    })
-
-    if (fs.existsSync("dados.csv")) {
-        fs.unlinkSync("dados.csv")
-    }
-
+    gerarHtml(resultados, proporcoes, excluidos)
 }
 
 main()
