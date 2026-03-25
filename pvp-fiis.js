@@ -4,7 +4,7 @@ const fs = require("fs")
 
 const fiis = [
 "FATN11","TRXF11","GARE11","VISC11","PMLL11","TGAR11",
-"XPLG11","HGLG11","KNRI11","BRCO11","XPML11","BTLG11","PVBI11","HGRU11"
+"XPLG11","HGLG11","KNRI11","BRCO11","XPML11","BTLG11","HGRU11"
 ]
 
 function lerProporcoes(){
@@ -210,6 +210,17 @@ ${linhas}
 let ordemAsc = true
 let colunaAtual = -1
 
+function limparValor(valor){
+
+    valor = valor.replace("R$","").replace("%","").trim()
+
+    if(valor.includes(",")){
+        valor = valor.replace(/\\./g,"").replace(",",".")
+    }
+
+    return valor
+}
+
 function ordenarTabela(coluna){
 
     const tabela = document.getElementById("tabelaFiis")
@@ -230,12 +241,9 @@ function ordenarTabela(coluna){
 
     linhas.sort((a,b)=>{
 
-        let valA = a.cells[coluna].innerText
-        let valB = b.cells[coluna].innerText
+        let valA = limparValor(a.cells[coluna].innerText)
+        let valB = limparValor(b.cells[coluna].innerText)
 
-        valA = valA.replace("R$","").replace("%","").replace(/\\./g,"").replace(",",".")
-        valB = valB.replace("R$","").replace("%","").replace(/\\./g,"").replace(",",".")
-        
         const numA = parseFloat(valA)
         const numB = parseFloat(valB)
 
