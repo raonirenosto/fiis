@@ -1,6 +1,8 @@
 const axios = require("axios")
 const cheerio = require("cheerio")
 const fs = require("fs")
+const { exec } = require("child_process")
+const path = require("path")
 
 const fiis = [
 "FATN11","TRXF11","GARE11","VISC11","PMLL11","TGAR11",
@@ -152,7 +154,6 @@ function gerarHtml(resultados, proporcoes, excluidos){
 <style>
 
 body{font-family: Arial;background:#f4f8ff;padding:40px;}
-
 table{border-collapse:collapse;width:1300px;margin:auto;}
 
 th{
@@ -211,13 +212,10 @@ let ordemAsc = true
 let colunaAtual = -1
 
 function limparValor(valor){
-
     valor = valor.replace("R$","").replace("%","").trim()
-
     if(valor.includes(",")){
         valor = valor.replace(/\\./g,"").replace(",",".")
     }
-
     return valor
 }
 
@@ -269,6 +267,16 @@ function ordenarTabela(coluna){
 `
 
     fs.writeFileSync("resultado.html", html)
+
+    // 🔥 abrir automaticamente
+    const caminho = path.resolve("resultado.html")
+
+    const comando =
+        process.platform === "win32" ? `start "" "${caminho}"` :
+        process.platform === "darwin" ? `open "${caminho}"` :
+        `xdg-open "${caminho}"`
+
+    exec(comando)
 }
 
 async function main(){
