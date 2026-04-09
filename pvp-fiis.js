@@ -4,10 +4,26 @@ const fs = require("fs")
 const { exec } = require("child_process")
 const path = require("path")
 
-const fiis = [
-"FATN11","TRXF11","GARE11","VISC11","PMLL11","TGAR11",
-"XPLG11","HGLG11","KNRI11","BRCO11","XPML11","BTLG11","HGRU11"
-]
+// ===============================
+// 📥 LER FIIs DO ARQUIVO
+// ===============================
+
+function lerFiis() {
+
+    if (!fs.existsSync("lista_fiis.txt")) {
+        console.log("⚠️ Arquivo lista_fiis.txt não encontrado")
+        return []
+    }
+
+    return fs.readFileSync("lista_fiis.txt", "utf-8")
+        .split(/[\r\n\s,]+/) // aceita quebra de linha, espaço ou vírgula
+        .map(l => l.trim().toUpperCase())
+        .filter(l => l)
+}
+
+// ===============================
+// 📥 OUTRAS LEITURAS
+// ===============================
 
 function lerProporcoes(){
     const mapa = {}
@@ -44,6 +60,10 @@ function lerExcluidos(){
         .filter(l => l)
     )
 }
+
+// ===============================
+// 🌐 SCRAPING
+// ===============================
 
 async function processarFii(ticker){
 
@@ -85,6 +105,10 @@ async function processarFii(ticker){
         return null
     }
 }
+
+// ===============================
+// 🧾 HTML
+// ===============================
 
 function gerarHtml(resultados, proporcoes, excluidos){
 
@@ -152,29 +176,17 @@ function gerarHtml(resultados, proporcoes, excluidos){
 <head>
 <meta charset="UTF-8">
 <style>
-
 body{font-family: Arial;background:#f4f8ff;padding:40px;}
 table{border-collapse:collapse;width:1300px;margin:auto;}
-
-th{
-background:#4a90e2;
-color:white;
-padding:12px;
-cursor:pointer;
-}
-
+th{background:#4a90e2;color:white;padding:12px;cursor:pointer;}
 .seta{margin-left:5px;font-size:12px;}
-
 td{padding:10px;text-align:center;}
-
 tr:nth-child(even){background:#e6f0ff;}
 tr:nth-child(odd){background:#ffffff;}
-
 .top{background:#00e676 !important;font-weight:bold;}
 .caro{background:#ffd6d6 !important;}
 .baixoDy{background:#fff3b0 !important;}
 .excluido{text-decoration:line-through;color:#888;background:#f0f0f0 !important;}
-
 </style>
 </head>
 
@@ -183,7 +195,6 @@ tr:nth-child(odd){background:#ffffff;}
 <h1>Scanner de FIIs</h1>
 
 <table id="tabelaFiis">
-
 <thead>
 <tr>
 <th onclick="ordenarTabela(0)">Ticker <span class="seta">↕</span></th>
@@ -203,11 +214,9 @@ tr:nth-child(odd){background:#ffffff;}
 <tbody>
 ${linhas}
 </tbody>
-
 </table>
 
 <script>
-
 let ordemAsc = true
 let colunaAtual = -1
 
@@ -220,7 +229,6 @@ function limparValor(valor){
 }
 
 function ordenarTabela(coluna){
-
     const tabela = document.getElementById("tabelaFiis")
     const tbody = tabela.tBodies[0]
     const linhas = Array.from(tbody.rows)
@@ -238,7 +246,6 @@ function ordenarTabela(coluna){
     }
 
     linhas.sort((a,b)=>{
-
         let valA = limparValor(a.cells[coluna].innerText)
         let valB = limparValor(b.cells[coluna].innerText)
 
@@ -259,7 +266,6 @@ function ordenarTabela(coluna){
 
     linhas.forEach(linha => tbody.appendChild(linha))
 }
-
 </script>
 
 </body>
@@ -268,7 +274,6 @@ function ordenarTabela(coluna){
 
     fs.writeFileSync("resultado.html", html)
 
-    // 🔥 abrir automaticamente
     const caminho = path.resolve("resultado.html")
 
     const comando =
@@ -279,7 +284,15 @@ function ordenarTabela(coluna){
     exec(comando)
 }
 
+// ===============================
+// 🚀 MAIN
+// ===============================
+
 async function main(){
+
+    const fiis = lerFiis()
+
+    console.log(`📊 ${fiis.length} FIIs carregados`)
 
     const proporcoes = lerProporcoes()
     const excluidos = lerExcluidos()
