@@ -5,7 +5,7 @@ const { exec } = require("child_process")
 const path = require("path")
 
 // ===============================
-// 📥 LER FIIs DO ARQUIVO
+// 📥 LER FIIs
 // ===============================
 
 function lerFiis() {
@@ -22,14 +22,16 @@ function lerFiis() {
 }
 
 // ===============================
-// 📥 OUTRAS LEITURAS
+// 📥 LER PROPORÇÕES
 // ===============================
 
 function lerProporcoes() {
 
     const mapa = {}
 
-    if (!fs.existsSync("lista_proporcao.txt")) return mapa
+    if (!fs.existsSync("lista_proporcao.txt")) {
+        return mapa
+    }
 
     const linhas = fs.readFileSync("lista_proporcao.txt", "utf-8")
         .split(/\r?\n/)
@@ -41,9 +43,11 @@ function lerProporcoes() {
     linhas.forEach(linha => {
 
         if (/^[A-Z]{4}\d{2}$/.test(linha)) {
+
             tickerAtual = linha
         }
         else if (linha.includes("%") && tickerAtual) {
+
             mapa[tickerAtual] = linha
             tickerAtual = null
         }
@@ -52,9 +56,15 @@ function lerProporcoes() {
     return mapa
 }
 
+// ===============================
+// 📥 LER EXCLUÍDOS
+// ===============================
+
 function lerExcluidos() {
 
-    if (!fs.existsSync("lista_excluidos.txt")) return new Set()
+    if (!fs.existsSync("lista_excluidos.txt")) {
+        return new Set()
+    }
 
     return new Set(
         fs.readFileSync("lista_excluidos.txt", "utf-8")
@@ -65,7 +75,7 @@ function lerExcluidos() {
 }
 
 // ===============================
-// 🌐 SCRAPING
+// 🌐 PROCESSAR FII
 // ===============================
 
 async function processarFii(ticker) {
@@ -131,7 +141,7 @@ async function processarFii(ticker) {
 }
 
 // ===============================
-// 🧾 HTML
+// 🧾 GERAR HTML
 // ===============================
 
 function gerarHtml(resultados, proporcoes, excluidos) {
@@ -236,9 +246,12 @@ function gerarHtml(resultados, proporcoes, excluidos) {
 
     const html = `
 <html>
+
 <head>
 
 <meta charset="UTF-8">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
 
@@ -246,6 +259,46 @@ body{
     font-family:Arial;
     background:#f4f8ff;
     padding:40px;
+}
+
+.topo{
+    width:1300px;
+    margin:auto auto 25px auto;
+    position:relative;
+}
+
+h1{
+    text-align:center;
+    margin:0;
+    font-size:36px;
+}
+
+.btn-pdf{
+    position:absolute;
+    right:0;
+    top:50%;
+    transform:translateY(-50%);
+
+    width:42px;
+    height:42px;
+
+    border:none;
+    border-radius:10px;
+
+    background:#e53935;
+    color:white;
+
+    cursor:pointer;
+
+    font-size:20px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.btn-pdf:hover{
+    opacity:0.9;
 }
 
 table{
@@ -261,14 +314,14 @@ th{
     cursor:pointer;
 }
 
-.seta{
-    margin-left:5px;
-    font-size:12px;
-}
-
 td{
     padding:10px;
     text-align:center;
+}
+
+.seta{
+    margin-left:5px;
+    font-size:12px;
 }
 
 tr:nth-child(even){
@@ -306,27 +359,25 @@ tr:nth-child(odd){
 .legenda{
     width:1300px;
     margin:30px auto 0 auto;
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.1);
-}
 
-.legenda h3{
-    margin-top:0;
+    background:white;
+
+    padding:20px;
+
+    border-radius:10px;
+
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
 }
 
 .item-legenda{
     display:flex;
     align-items:center;
     margin:10px 0;
-    font-size:16px;
 }
 
 .cor{
     width:25px;
     height:25px;
-    display:inline-block;
     margin-right:12px;
     border:1px solid #999;
 }
@@ -353,7 +404,15 @@ tr:nth-child(odd){
 
 <body>
 
-<h1>Scanner de FIIs</h1>
+<div class="topo">
+
+    <h1>Scanner de FIIs</h1>
+
+    <button class="btn-pdf" onclick="exportarPDF()" title="Exportar PDF">
+        📄
+    </button>
+
+</div>
 
 <table id="tabelaFiis">
 
@@ -389,7 +448,7 @@ ${linhas}
 
 <div class="item-legenda">
     <span class="cor verde"></span>
-    Verde = FIIs com os melhores scores, dentro do ideal da carteira (${limite.toFixed(2)}%) e fora das zonas amarela/vermelha
+    Verde = FIIs com os melhores scores, dentro do ideal da carteira (${limite.toFixed(2)}%)
 </div>
 
 <div class="item-legenda">
@@ -404,12 +463,50 @@ ${linhas}
 
 <div class="item-legenda">
     <span class="cor roxo-cor"></span>
-    Roxo = DY abaixo de 8% e P/VP acima de 1 ao mesmo tempo
+    Roxo = DY abaixo de 8% e P/VP acima de 1
 </div>
 
 </div>
 
 <script>
+
+function exportarPDF(){
+
+    const botao = document.querySelector(".btn-pdf")
+
+    botao.style.display = "none"
+
+    const elemento = document.body
+
+    const opt = {
+        margin:0.5,
+        filename:"scanner-fiis.pdf",
+
+        image:{
+            type:"jpeg",
+            quality:1
+        },
+
+        html2canvas:{
+            scale:2
+        },
+
+        jsPDF:{
+            unit:"in",
+            format:"a3",
+            orientation:"landscape"
+        }
+    }
+
+    html2pdf()
+        .set(opt)
+        .from(elemento)
+        .save()
+        .then(() => {
+
+            botao.style.display = "flex"
+        })
+}
 
 let ordemAsc = true
 let colunaAtual = -1
@@ -419,7 +516,7 @@ function limparValor(valor){
     valor = valor.replace("R$","").replace("%","").trim()
 
     if(valor.includes(",")){
-        valor = valor.replace(/\\./g,"").replace(",",".")
+        valor = valor.replace(/\\\\./g,"").replace(",",".")
     }
 
     return valor
@@ -428,8 +525,11 @@ function limparValor(valor){
 function ordenarTabela(coluna){
 
     const tabela = document.getElementById("tabelaFiis")
+
     const tbody = tabela.tBodies[0]
+
     const linhas = Array.from(tbody.rows)
+
     const headers = tabela.querySelectorAll("th")
 
     headers.forEach(th=>{
@@ -471,6 +571,7 @@ function ordenarTabela(coluna){
 </script>
 
 </body>
+
 </html>
 `
 
