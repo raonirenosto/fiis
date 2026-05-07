@@ -198,16 +198,22 @@ function gerarHtml(resultados, proporcoes, excluidos) {
 
         let classe = ""
 
+        const ehVermelho = r.pvpNumero > 1
+        const ehAmarelo = dyAnual < 8
+
         if (excluidos.has(r.ticker.toUpperCase())) {
             classe = "excluido"
         }
         else if (top2.includes(r.ticker)) {
             classe = "top"
         }
-        else if (r.pvpNumero > 1) {
+        else if (ehVermelho && ehAmarelo) {
+            classe = "roxo"
+        }
+        else if (ehVermelho) {
             classe = "caro"
         }
-        else if (dyAnual < 8) {
+        else if (ehAmarelo) {
             classe = "baixoDy"
         }
 
@@ -286,6 +292,11 @@ tr:nth-child(odd){
     background:#fff3b0 !important;
 }
 
+.roxo{
+    background:#d6b3ff !important;
+    font-weight:bold;
+}
+
 .excluido{
     text-decoration:line-through;
     color:#888;
@@ -330,6 +341,10 @@ tr:nth-child(odd){
 
 .vermelho{
     background:#ffd6d6;
+}
+
+.roxo-cor{
+    background:#d6b3ff;
 }
 
 </style>
@@ -385,6 +400,11 @@ ${linhas}
 <div class="item-legenda">
     <span class="cor vermelho"></span>
     Vermelho = P/VP acima de 1
+</div>
+
+<div class="item-legenda">
+    <span class="cor roxo-cor"></span>
+    Roxo = DY abaixo de 8% e P/VP acima de 1 ao mesmo tempo
 </div>
 
 </div>
