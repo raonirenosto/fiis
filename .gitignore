@@ -1,3 +1,7 @@
 resultado.html
 dados.csv
 node_modules/
+
+# IntelliJ
+.idea/
+*.iml
