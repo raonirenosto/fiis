@@ -600,9 +600,29 @@ atualizarDataGeracao()
 </html>
 `
 
-    fs.writeFileSync("resultado.html", html)
+    const agora = new Date()
+    const dia = String(agora.getDate()).padStart(2, "0")
+    const mes = String(agora.getMonth() + 1).padStart(2, "0")
+    const ano = agora.getFullYear()
+    const hora = String(agora.getHours()).padStart(2, "0")
+    const minuto = String(agora.getMinutes()).padStart(2, "0")
+    const timestamp = `${dia}-${mes}-${ano}-${hora}h${minuto}`
 
-    const caminho = path.resolve("resultado.html")
+    const pasta = "relatorios"
+
+    if (!fs.existsSync(pasta)) {
+        fs.mkdirSync(pasta)
+    }
+
+    const nomeArquivo = comMeses
+        ? `relatorio-com-meses-de-rendimento-${timestamp}.html`
+        : `relatorio-basico-${timestamp}.html`
+
+    const caminhoArquivo = path.join(pasta, nomeArquivo)
+
+    fs.writeFileSync(caminhoArquivo, html)
+
+    const caminho = path.resolve(caminhoArquivo)
 
     const comando =
         process.platform === "win32"
