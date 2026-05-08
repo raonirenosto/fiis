@@ -3,6 +3,7 @@ const cheerio = require("cheerio")
 const fs = require("fs")
 const { exec } = require("child_process")
 const path = require("path")
+const { analisarFiis } = require("./modulo_meses_rendimentos")
 
 // ===============================
 // 📥 LER FIIs
@@ -237,6 +238,7 @@ function gerarHtml(resultados, proporcoes, excluidos) {
 <td>${dyMensal.toFixed(2)}%</td>
 <td>${dyAnual.toFixed(2)}%</td>
 <td>${r.score.toFixed(3)}</td>
+<td>${r.mesesRendimento ?? "-"}</td>
 <td>${proporcaoStr}</td>
 <td>R$ ${rendimento5000.toFixed(2)}</td>
 <td>R$ ${rendimento10000.toFixed(2)}</td>
@@ -431,9 +433,10 @@ tr:nth-child(odd){
 <th onclick="ordenarTabela(5)">DY Mensal <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(6)">DY Anual <span class="seta">↕</span></th>
 <th onclick="ordenarTabela(7)">Score <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(8)">% Carteira <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(9)">R$ 5.000 <span class="seta">↕</span></th>
-<th onclick="ordenarTabela(10)">R$ 10.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(8)">Meses Rend. <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(9)">% Carteira <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(10)">R$ 5.000 <span class="seta">↕</span></th>
+<th onclick="ordenarTabela(11)">R$ 10.000 <span class="seta">↕</span></th>
 </tr>
 
 </thead>
@@ -653,6 +656,22 @@ async function main() {
     })
 
     resultados.sort((a, b) => b.score - a.score)
+
+    console.log("📈 Analisando meses de rendimento...")
+
+    const mesesResultados = await analisarFiis(fiis)
+
+    const mapaMeses = {}
+
+    mesesResultados.forEach(m => {
+        if (!m.erro) {
+            mapaMeses[m.ticker.toUpperCase()] = m.meses
+        }
+    })
+
+    resultados.forEach(r => {
+        r.mesesRendimento = mapaMeses[r.ticker.toUpperCase()] ?? null
+    })
 
     gerarHtml(resultados, proporcoes, excluidos)
 }
