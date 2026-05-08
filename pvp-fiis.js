@@ -359,13 +359,9 @@ tr:nth-child(odd){
 .legenda{
     width:1300px;
     margin:30px auto 0 auto;
-
     background:white;
-
     padding:20px;
-
     border-radius:10px;
-
     box-shadow:0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -396,6 +392,14 @@ tr:nth-child(odd){
 
 .roxo-cor{
     background:#d6b3ff;
+}
+
+.data-geracao{
+    width:1300px;
+    margin:15px auto 0 auto;
+    text-align:right;
+    color:#666;
+    font-size:14px;
 }
 
 </style>
@@ -468,7 +472,23 @@ ${linhas}
 
 </div>
 
+<div class="data-geracao">
+    Gerado em:
+    <span id="dataGeracao"></span>
+</div>
+
 <script>
+
+function atualizarDataGeracao(){
+
+    const agora = new Date()
+
+    const data = agora.toLocaleDateString("pt-BR")
+    const hora = agora.toLocaleTimeString("pt-BR")
+
+    document.getElementById("dataGeracao").innerText =
+        data + " às " + hora
+}
 
 function exportarPDF(){
 
@@ -567,6 +587,8 @@ function ordenarTabela(coluna){
 
     linhas.forEach(linha => tbody.appendChild(linha))
 }
+
+atualizarDataGeracao()
 
 </script>
 
