@@ -67,7 +67,10 @@ TGAR11
 
 ## Saída
 
-O script gera o arquivo `resultado.html` e abre automaticamente no navegador.
+Os relatórios são gerados na pasta `relatorios/` com timestamp no nome e abertos automaticamente no navegador:
+
+- `relatorios/relatorio-basico-18-07-2025-14h30.html`
+- `relatorios/relatorio-com-meses-de-rendimento-18-07-2025-14h30.html`
 
 ### Funcionalidades do relatório
 
