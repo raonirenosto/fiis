@@ -1,31 +1,46 @@
+const axios = require("axios")
 const puppeteer = require("puppeteer")
 
-function calcularMesesSemQuebra(historicoDividendos) {
+// ===============================
+// 📡 BUSCAR VIA API (rápido)
+// ===============================
 
-    if (!historicoDividendos.length) {
+async function buscarRendimentosApi(ticker) {
 
-        return {
-            meses: 0,
-            quebra: null
-        }
+    const url = "https://statusinvest.com.br/fii/companytickerprovents"
+
+    const response = await axios.get(url, {
+        params: { ticker, chartProvidentType: 2 },
+        headers: { "User-Agent": "Mozilla/5.0" }
+    })
+
+    const dados = response.data.assetEarningsModels || []
+
+    return dados
+        .filter(d => d.et === "Rendimento")
+        .map(d => ({ data: d.ed, valor: d.v }))
+}
+
+// ===============================
+// 🌐 BUSCAR VIA PUPPETEER (completo)
+// ===============================
+
+function calcularMesesSemQuebra(rendimentos) {
+
+    if (rendimentos.length < 3) {
+        return { meses: rendimentos.length, quebra: null }
     }
 
-    const lista = historicoDividendos.map(function(h) {
+    const lista = rendimentos.map(function(h) {
 
-        const valor = parseFloat(
-            h.valor
-                .replace(/\./g, "")
-                .replace(",", ".")
-        )
+        const valor = typeof h.valor === "number"
+            ? h.valor
+            : parseFloat(h.valor.replace(/\./g, "").replace(",", "."))
 
-        return {
-            dataCom: h.dataCom,
-            valor: valor
-        }
+        return { data: h.data, valor }
     })
 
     let meses = 1
-    let quebra = null
 
     for (let i = 0; i < lista.length - 2; i++) {
 
@@ -34,30 +49,23 @@ function calcularMesesSemQuebra(historicoDividendos) {
         const depois = lista[i + 2]
 
         if (atual.valor >= proximo.valor) {
-
             meses++
             continue
         }
 
         const ehPicoTemporario =
             proximo.valor > atual.valor
-            &&
-            depois.valor <= atual.valor
+            && depois.valor <= atual.valor
 
         if (ehPicoTemporario) {
-
             meses++
             continue
         }
 
-        quebra = proximo.dataCom
-        break
+        return { meses, quebra: proximo.data }
     }
 
-    return {
-        meses: meses,
-        quebra: quebra
-    }
+    return { meses: lista.length, quebra: null }
 }
 
 async function lerTabelaDividendos(page) {
@@ -90,8 +98,6 @@ async function extrairRendimentos(page) {
     let continuar = true
 
     while (continuar) {
-
-        console.log("📄 Página " + pagina)
 
         await new Promise(function(r) {
             setTimeout(r, 3000)
@@ -131,7 +137,7 @@ async function extrairRendimentos(page) {
                         registros.add(chave)
 
                         historicoDividendos.push({
-                            dataCom: dataCom,
+                            data: dataCom,
                             pagamento: pagamento,
                             valor: valor
                         })
@@ -145,7 +151,7 @@ async function extrairRendimentos(page) {
         const primeiroAntes =
             historicoDividendos[
                 historicoDividendos.length - encontrouNaPagina
-            ]?.dataCom
+            ]?.data
 
         const paginaAlvo = pagina + 1
 
@@ -246,7 +252,7 @@ async function extrairRendimentos(page) {
     return historicoDividendos
 }
 
-async function analisarFii(browser, ticker) {
+async function buscarRendimentosPuppeteer(browser, ticker) {
 
     let page = null
 
@@ -283,12 +289,7 @@ async function analisarFii(browser, ticker) {
             "https://statusinvest.com.br/fundos-imobiliarios/"
             + ticker.toLowerCase()
 
-        console.log("")
-        console.log("🔍 Analisando " + ticker + "...")
-        console.log(url)
-
         await page.goto(url, {
-
             waitUntil: "networkidle2",
             timeout: 60000
         })
@@ -315,80 +316,72 @@ async function analisarFii(browser, ticker) {
             setTimeout(r, 3000)
         })
 
-        const historico =
-            await extrairRendimentos(page)
+        const historico = await extrairRendimentos(page)
 
-        const resultado =
-            calcularMesesSemQuebra(historico)
-
-        console.log("✅ " + ticker + " finalizado")
-        console.log("📈 Meses: " + resultado.meses)
-        console.log("📦 Rendimentos: " + historico.length)
-
-        if (resultado.quebra) {
-
-            console.log("📉 Quebra: " + resultado.quebra)
-        }
-        else {
-
-            console.log("✅ Sem quebra")
-        }
-
-        return {
-
-            ticker: ticker,
-            meses: resultado.meses,
-            quebra: resultado.quebra,
-            totalRendimentos: historico.length
-        }
-
-    } catch (e) {
-
-        console.log("")
-        console.log("❌ Erro em " + ticker)
-        console.log(e.message)
-
-        return {
-
-            ticker: ticker,
-            erro: true,
-            mensagem: e.message
-        }
+        return historico
 
     } finally {
 
         if (page) {
-
-            try {
-                await page.close()
-            }
-            catch (_) {}
+            try { await page.close() } catch (_) {}
         }
     }
 }
 
+// ===============================
+// 🚀 ANALISAR FIIs
+// ===============================
+
 async function analisarFiis(listaFiis) {
 
-    if (!listaFiis) {
-        listaFiis = []
-    }
+    if (!listaFiis) return []
 
     const resultados = []
+    const precisaPuppeteer = []
 
+    // Fase 1: API (instantânea)
     for (const ticker of listaFiis) {
+
+        try {
+
+            const rendimentos = await buscarRendimentosApi(ticker)
+            const resultado = calcularMesesSemQuebra(rendimentos)
+
+            if (resultado.quebra) {
+
+                console.log(`✅ ${ticker} — ${resultado.meses} meses (quebra: ${resultado.quebra})`)
+
+                resultados.push({
+                    ticker,
+                    meses: resultado.meses,
+                    quebra: resultado.quebra,
+                    totalRendimentos: rendimentos.length
+                })
+
+            } else {
+
+                precisaPuppeteer.push(ticker)
+            }
+
+        } catch (e) {
+
+            precisaPuppeteer.push(ticker)
+        }
+    }
+
+    // Fase 2: Puppeteer (só para quem não teve quebra na API)
+    if (precisaPuppeteer.length > 0) {
+
+        console.log(`⏳ ${precisaPuppeteer.length} FIIs precisam de histórico completo...`)
 
         let browser = null
 
         try {
 
             browser = await puppeteer.launch({
-
                 headless: true,
-
                 ignoreHTTPSErrors: true,
-
                 args: [
-
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
@@ -399,45 +392,49 @@ async function analisarFiis(listaFiis) {
                 ]
             })
 
-            const resultado =
-                await analisarFii(browser, ticker)
+            for (const ticker of precisaPuppeteer) {
 
-            resultados.push(resultado)
+                try {
 
-        } catch (e) {
+                    console.log(`🔍 ${ticker}...`)
 
-            resultados.push({
+                    const historico = await buscarRendimentosPuppeteer(browser, ticker)
+                    const resultado = calcularMesesSemQuebra(historico)
 
-                ticker: ticker,
-                erro: true,
-                mensagem: e.message
-            })
+                    const info = resultado.quebra ? `(quebra: ${resultado.quebra})` : "(sem quebra)"
+                    console.log(`✅ ${ticker} — ${resultado.meses} meses ${info}`)
+
+                    resultados.push({
+                        ticker,
+                        meses: resultado.meses,
+                        quebra: resultado.quebra,
+                        totalRendimentos: historico.length
+                    })
+
+                } catch (e) {
+
+                    console.log(`❌ ${ticker}: ${e.message}`)
+                    resultados.push({ ticker, erro: true, mensagem: e.message })
+                }
+
+                await new Promise(function(r) {
+                    setTimeout(r, 4000)
+                })
+            }
 
         } finally {
 
             if (browser) {
-
-                try {
-                    await browser.close()
-                }
-                catch (_) {}
+                try { await browser.close() } catch (_) {}
             }
         }
-
-        await new Promise(function(r) {
-            setTimeout(r, 4000)
-        })
     }
 
     resultados.sort(function(a, b) {
-
         return (b.meses || 0) - (a.meses || 0)
     })
 
     return resultados
 }
 
-module.exports = {
-
-    analisarFiis: analisarFiis
-}
+module.exports = { analisarFiis }
