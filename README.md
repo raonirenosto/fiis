@@ -14,21 +14,23 @@ npm install
 
 ## Uso
 
-### Relatório básico (rápido)
+### Relatório completo (padrão)
 
 ```bash
 node pvp-fiis.js
 ```
 
-Gera o relatório com preço, P/VP, DY, score e proporção da carteira.
+Gera o relatório com preço, P/VP, DY, score, proporção da carteira e meses de rendimento.
 
-### Relatório com meses de rendimento
+### Relatório básico (rápido)
 
 ```bash
-node pvp-fiis.js --meses
+node pvp-fiis.js --sem-meses
 ```
 
-Inclui a coluna "Meses Rend." que mostra quantos meses consecutivos o FII manteve rendimentos sem queda.
+Gera o relatório sem a coluna "Meses Rend." — útil quando quer apenas os dados básicos rapidamente.
+
+### Cache de meses de rendimento
 
 Na primeira execução, utiliza a API do Status Invest e Puppeteer para coletar o histórico completo. Os dados são salvos em cache (`cache_meses.csv`) e nas execuções seguintes apenas os meses novos são verificados via API — sem necessidade de recarregar todo o histórico.
 
