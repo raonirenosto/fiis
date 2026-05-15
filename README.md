@@ -83,6 +83,7 @@ Os relatórios são gerados na pasta `relatorios/` com timestamp no nome e abert
 
 - Tabela ordenável por qualquer coluna (clique no cabeçalho)
 - Exportação para PDF (botão no canto superior direito)
+- Checkbox "Cores por categoria" para habilitar/desabilitar as cores e legenda
 - Cores indicativas:
   - 🟢 **Verde** — Melhores scores, dentro do limite ideal da carteira
   - 🟡 **Amarelo** — DY anual abaixo de 8%
