@@ -614,9 +614,9 @@ atualizarDataGeracao()
         fs.mkdirSync(pasta)
     }
 
-    const nomeArquivo = comMeses
-        ? `relatorio-com-meses-de-rendimento-${timestamp}.html`
-        : `relatorio-basico-${timestamp}.html`
+    const nomeArquivo = semMeses
+        ? `relatorio-basico-${timestamp}.html`
+        : `relatorio-com-meses-de-rendimento-${timestamp}.html`
 
     const caminhoArquivo = path.join(pasta, nomeArquivo)
 
@@ -641,7 +641,7 @@ atualizarDataGeracao()
 async function main() {
 
     const args = process.argv.slice(2)
-    const comMeses = args.includes("--meses")
+    const semMeses = args.includes("--sem-meses")
 
     const fiis = lerFiis()
 
@@ -680,7 +680,7 @@ async function main() {
 
     resultados.sort((a, b) => b.score - a.score)
 
-    if (comMeses) {
+    if (!semMeses) {
 
         console.log("📈 Analisando meses de rendimento...")
 
@@ -699,7 +699,7 @@ async function main() {
         })
     }
 
-    gerarHtml(resultados, proporcoes, excluidos, comMeses)
+    gerarHtml(resultados, proporcoes, excluidos, !semMeses)
 }
 
 main()
