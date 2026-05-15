@@ -28,7 +28,12 @@ Gera o relatório com preço, P/VP, DY, score e proporção da carteira.
 node pvp-fiis.js --meses
 ```
 
-Inclui a coluna "Meses Rend." que mostra quantos meses consecutivos o FII manteve rendimentos sem queda. Utiliza Puppeteer para navegar nas páginas de dividendos — **a execução é significativamente mais lenta** (vários minutos dependendo da quantidade de FIIs).
+Inclui a coluna "Meses Rend." que mostra quantos meses consecutivos o FII manteve rendimentos sem queda.
+
+Na primeira execução, utiliza a API do Status Invest e Puppeteer para coletar o histórico completo. Os dados são salvos em cache (`cache_meses.csv`) e nas execuções seguintes apenas os meses novos são verificados via API — sem necessidade de recarregar todo o histórico.
+
+**Primeira execução:** mais lenta (Puppeteer para FIIs sem quebra recente).
+**Execuções seguintes:** instantânea (cache + verificação incremental via API).
 
 ## Arquivos de configuração
 
