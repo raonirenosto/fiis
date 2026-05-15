@@ -61,6 +61,21 @@ function agora() {
     return `${dia}/${mes}/${ano} ${hora}:${min}`
 }
 
+function calcularMesesPassados(atualizadoEm) {
+
+    if (!atualizadoEm) return 1
+
+    const partes = atualizadoEm.split(" ")[0].split("/")
+    const mesCached = parseInt(partes[1])
+    const anoCached = parseInt(partes[2])
+
+    const hoje = new Date()
+    const mesAtual = hoje.getMonth() + 1
+    const anoAtual = hoje.getFullYear()
+
+    return (anoAtual - anoCached) * 12 + (mesAtual - mesCached)
+}
+
 // ===============================
 // 📡 BUSCAR VIA API (rápido)
 // ===============================
@@ -434,8 +449,65 @@ async function analisarFiis(listaFiis) {
 
             } else {
 
-                console.log(`🔄 ${ticker} — cache desatualizado, atualizando...`)
-                precisaAtualizar.push(ticker)
+                // Cache desatualizado — atualizar incrementalmente via API
+                try {
+
+                    const rendimentos = await buscarRendimentosApi(ticker)
+                    const resultado = calcularMesesSemQuebra(rendimentos)
+
+                    if (resultado.quebra) {
+
+                        // Houve quebra nos meses recentes
+                        console.log(`🔄 ${ticker} — ${resultado.meses} meses (atualizado, quebra: ${resultado.quebra})`)
+
+                        cache[ticker.toUpperCase()] = {
+                            meses: resultado.meses,
+                            quebra: resultado.quebra,
+                            atualizadoEm: agora()
+                        }
+
+                        resultados.push({
+                            ticker,
+                            meses: resultado.meses,
+                            quebra: resultado.quebra,
+                            totalRendimentos: rendimentos.length
+                        })
+
+                    } else {
+
+                        // Sem quebra — incrementar meses com base no tempo passado
+                        const mesesPassados = calcularMesesPassados(cached.atualizadoEm)
+                        const novosMeses = cached.meses + mesesPassados
+
+                        console.log(`🔄 ${ticker} — ${novosMeses} meses (atualizado, +${mesesPassados} meses, sem quebra)`)
+
+                        cache[ticker.toUpperCase()] = {
+                            meses: novosMeses,
+                            quebra: null,
+                            atualizadoEm: agora()
+                        }
+
+                        resultados.push({
+                            ticker,
+                            meses: novosMeses,
+                            quebra: null,
+                            totalRendimentos: null
+                        })
+                    }
+
+                } catch (e) {
+
+                    // Falha na API — usa cache antigo
+                    const info = cached.quebra ? `quebra: ${cached.quebra}` : "sem quebra"
+                    console.log(`⚠️ ${ticker} — ${cached.meses} meses (cache antigo, falha ao atualizar)`)
+
+                    resultados.push({
+                        ticker,
+                        meses: cached.meses,
+                        quebra: cached.quebra,
+                        totalRendimentos: null
+                    })
+                }
             }
 
         } else {
@@ -444,7 +516,7 @@ async function analisarFiis(listaFiis) {
         }
     }
 
-    // Fase 2: API (instantânea) para os que precisam atualizar
+    // Fase 2: API (instantânea) para FIIs sem cache
     const precisaPuppeteer = []
 
     for (const ticker of precisaAtualizar) {
@@ -482,7 +554,7 @@ async function analisarFiis(listaFiis) {
         }
     }
 
-    // Fase 3: Puppeteer (só para quem não teve quebra na API)
+    // Fase 3: Puppeteer (só para FIIs novos sem quebra na API)
     if (precisaPuppeteer.length > 0) {
 
         console.log(`⏳ ${precisaPuppeteer.length} FIIs precisam de histórico completo (Puppeteer)...`)
