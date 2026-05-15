@@ -396,6 +396,31 @@ tr:nth-child(odd){
     background:#d6b3ff;
 }
 
+.toggle-cores{
+    position:absolute;
+    right:60px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:14px;
+    cursor:pointer;
+    user-select:none;
+}
+
+.sem-cor{
+    background:none !important;
+    text-decoration:none !important;
+    color:inherit !important;
+    font-weight:normal !important;
+}
+
+.sem-cor:nth-child(even){
+    background:#e6f0ff !important;
+}
+
+.sem-cor:nth-child(odd){
+    background:#ffffff !important;
+}
+
 .data-geracao{
     width:1300px;
     margin:15px auto 0 auto;
@@ -417,6 +442,11 @@ tr:nth-child(odd){
     <button class="btn-pdf" onclick="exportarPDF()" title="Exportar PDF">
         📄
     </button>
+
+    <label class="toggle-cores">
+        <input type="checkbox" id="checkCores" checked onchange="toggleCores()">
+        Cores por categoria
+    </label>
 
 </div>
 
@@ -496,8 +526,16 @@ function atualizarDataGeracao(){
 function exportarPDF(){
 
     const botao = document.querySelector(".btn-pdf")
+    const toggle = document.querySelector(".toggle-cores")
+    const legenda = document.querySelector(".legenda")
+    const coresAtivas = document.getElementById("checkCores").checked
 
     botao.style.display = "none"
+    toggle.style.display = "none"
+
+    if(!coresAtivas){
+        legenda.style.display = "none"
+    }
 
     const elemento = document.body
 
@@ -528,6 +566,11 @@ function exportarPDF(){
         .then(() => {
 
             botao.style.display = "flex"
+            toggle.style.display = "block"
+
+            if(!coresAtivas){
+                legenda.style.display = "none"
+            }
         })
 }
 
@@ -589,6 +632,23 @@ function ordenarTabela(coluna){
     seta.innerText = ordemAsc ? "↑" : "↓"
 
     linhas.forEach(linha => tbody.appendChild(linha))
+}
+
+function toggleCores(){
+
+    const ativo = document.getElementById("checkCores").checked
+    const linhas = document.querySelectorAll("#tabelaFiis tbody tr")
+    const legenda = document.querySelector(".legenda")
+
+    linhas.forEach(tr => {
+        if(ativo){
+            tr.classList.remove("sem-cor")
+        } else {
+            tr.classList.add("sem-cor")
+        }
+    })
+
+    legenda.style.display = ativo ? "block" : "none"
 }
 
 atualizarDataGeracao()
