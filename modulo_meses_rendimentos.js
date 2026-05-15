@@ -1,5 +1,65 @@
 const axios = require("axios")
 const puppeteer = require("puppeteer")
+const fs = require("fs")
+const path = require("path")
+
+const CACHE_FILE = path.resolve(__dirname, "cache_meses.csv")
+
+// ===============================
+// 💾 CACHE CSV
+// ===============================
+
+function carregarCache() {
+
+    const cache = {}
+
+    if (!fs.existsSync(CACHE_FILE)) return cache
+
+    const linhas = fs.readFileSync(CACHE_FILE, "utf-8")
+        .split(/\r?\n/)
+        .filter(l => l.trim())
+
+    // Pula header
+    for (let i = 1; i < linhas.length; i++) {
+
+        const [ticker, meses, quebra, atualizadoEm] = linhas[i].split(";")
+
+        if (ticker) {
+            cache[ticker.toUpperCase()] = {
+                meses: parseInt(meses),
+                quebra: quebra || null,
+                atualizadoEm: atualizadoEm || null
+            }
+        }
+    }
+
+    return cache
+}
+
+function salvarCache(cache) {
+
+    let csv = "ticker;meses;quebra;atualizado_em\n"
+
+    for (const ticker of Object.keys(cache).sort()) {
+
+        const { meses, quebra, atualizadoEm } = cache[ticker]
+        csv += `${ticker};${meses};${quebra || ""};${atualizadoEm || ""}\n`
+    }
+
+    fs.writeFileSync(CACHE_FILE, csv)
+}
+
+function agora() {
+
+    const d = new Date()
+    const dia = String(d.getDate()).padStart(2, "0")
+    const mes = String(d.getMonth() + 1).padStart(2, "0")
+    const ano = d.getFullYear()
+    const hora = String(d.getHours()).padStart(2, "0")
+    const min = String(d.getMinutes()).padStart(2, "0")
+
+    return `${dia}/${mes}/${ano} ${hora}:${min}`
+}
 
 // ===============================
 // 📡 BUSCAR VIA API (rápido)
@@ -336,11 +396,58 @@ async function analisarFiis(listaFiis) {
 
     if (!listaFiis) return []
 
+    const cache = carregarCache()
     const resultados = []
+    const precisaAtualizar = []
+
+    // Fase 1: Carregar do cache ou marcar para atualizar
+    const mesAtual = new Date().getMonth() + 1
+    const anoAtual = new Date().getFullYear()
+
+    for (const ticker of listaFiis) {
+
+        const cached = cache[ticker.toUpperCase()]
+
+        if (cached) {
+
+            // Verificar se o cache está no mês atual
+            let cacheAtualizado = false
+
+            if (cached.atualizadoEm) {
+                const partes = cached.atualizadoEm.split(" ")[0].split("/")
+                const mesCached = parseInt(partes[1])
+                const anoCached = parseInt(partes[2])
+                cacheAtualizado = (mesCached === mesAtual && anoCached === anoAtual)
+            }
+
+            if (cacheAtualizado) {
+
+                const info = cached.quebra ? `quebra: ${cached.quebra}` : "sem quebra"
+                console.log(`💾 ${ticker} — ${cached.meses} meses (cache, ${info})`)
+
+                resultados.push({
+                    ticker,
+                    meses: cached.meses,
+                    quebra: cached.quebra,
+                    totalRendimentos: null
+                })
+
+            } else {
+
+                console.log(`🔄 ${ticker} — cache desatualizado, atualizando...`)
+                precisaAtualizar.push(ticker)
+            }
+
+        } else {
+
+            precisaAtualizar.push(ticker)
+        }
+    }
+
+    // Fase 2: API (instantânea) para os que precisam atualizar
     const precisaPuppeteer = []
 
-    // Fase 1: API (instantânea)
-    for (const ticker of listaFiis) {
+    for (const ticker of precisaAtualizar) {
 
         try {
 
@@ -349,7 +456,13 @@ async function analisarFiis(listaFiis) {
 
             if (resultado.quebra) {
 
-                console.log(`✅ ${ticker} — ${resultado.meses} meses (quebra: ${resultado.quebra})`)
+                console.log(`🌐 ${ticker} — ${resultado.meses} meses (API, quebra: ${resultado.quebra})`)
+
+                cache[ticker.toUpperCase()] = {
+                    meses: resultado.meses,
+                    quebra: resultado.quebra,
+                    atualizadoEm: agora()
+                }
 
                 resultados.push({
                     ticker,
@@ -369,10 +482,10 @@ async function analisarFiis(listaFiis) {
         }
     }
 
-    // Fase 2: Puppeteer (só para quem não teve quebra na API)
+    // Fase 3: Puppeteer (só para quem não teve quebra na API)
     if (precisaPuppeteer.length > 0) {
 
-        console.log(`⏳ ${precisaPuppeteer.length} FIIs precisam de histórico completo...`)
+        console.log(`⏳ ${precisaPuppeteer.length} FIIs precisam de histórico completo (Puppeteer)...`)
 
         let browser = null
 
@@ -396,13 +509,19 @@ async function analisarFiis(listaFiis) {
 
                 try {
 
-                    console.log(`🔍 ${ticker}...`)
+                    console.log(`🔍 ${ticker} (Puppeteer)...`)
 
                     const historico = await buscarRendimentosPuppeteer(browser, ticker)
                     const resultado = calcularMesesSemQuebra(historico)
 
                     const info = resultado.quebra ? `(quebra: ${resultado.quebra})` : "(sem quebra)"
                     console.log(`✅ ${ticker} — ${resultado.meses} meses ${info}`)
+
+                    cache[ticker.toUpperCase()] = {
+                        meses: resultado.meses,
+                        quebra: resultado.quebra,
+                        atualizadoEm: agora()
+                    }
 
                     resultados.push({
                         ticker,
@@ -429,6 +548,9 @@ async function analisarFiis(listaFiis) {
             }
         }
     }
+
+    // Salvar cache atualizado
+    salvarCache(cache)
 
     resultados.sort(function(a, b) {
         return (b.meses || 0) - (a.meses || 0)
