@@ -74,8 +74,8 @@ TGAR11
 
 Os relatórios são gerados na pasta `relatorios/` com timestamp no nome e abertos automaticamente no navegador:
 
-- `relatorios/relatorio-basico-18-07-2025-14h30.html`
-- `relatorios/relatorio-com-meses-de-rendimento-18-07-2025-14h30.html`
+- `relatorios/relatorio-com-meses-de-rendimento-18-07-2025-14h30.html` (padrão)
+- `relatorios/relatorio-basico-18-07-2025-14h30.html` (com `--sem-meses`)
 
 ### Funcionalidades do relatório
 
