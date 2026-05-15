@@ -102,7 +102,7 @@ Os relatórios são gerados na pasta `relatorios/` com timestamp no nome e abert
 | DY Mensal | Yield mensal calculado (provento/preço) |
 | DY Anual | DY Mensal × 12 |
 | Score | Ranking: (DY/100)×0.7 + (1/PVP)×0.3 |
-| Meses Rend. | Meses consecutivos sem queda no rendimento (apenas com `--meses`) |
+| Meses Rend. | Meses consecutivos sem queda no rendimento (omitido com `--sem-meses`) |
 | % Carteira | Proporção atual na carteira |
 | R$ 5.000 | Rendimento mensal estimado para R$ 5.000 investidos |
 | R$ 10.000 | Rendimento mensal estimado para R$ 10.000 investidos |
