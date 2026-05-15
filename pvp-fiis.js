@@ -614,9 +614,9 @@ atualizarDataGeracao()
         fs.mkdirSync(pasta)
     }
 
-    const nomeArquivo = semMeses
-        ? `relatorio-basico-${timestamp}.html`
-        : `relatorio-com-meses-de-rendimento-${timestamp}.html`
+    const nomeArquivo = comMeses
+        ? `relatorio-com-meses-de-rendimento-${timestamp}.html`
+        : `relatorio-basico-${timestamp}.html`
 
     const caminhoArquivo = path.join(pasta, nomeArquivo)
 
