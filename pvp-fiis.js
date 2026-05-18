@@ -702,6 +702,7 @@ async function main() {
 
     const args = process.argv.slice(2)
     const semMeses = args.includes("--sem-meses")
+    const semCache = args.includes("--sem-cache")
 
     const fiis = lerFiis()
 
@@ -744,7 +745,7 @@ async function main() {
 
         console.log("📈 Analisando meses de rendimento...")
 
-        const mesesResultados = await analisarFiis(fiis)
+        const mesesResultados = await analisarFiis(fiis, { semCache })
 
         const mapaMeses = {}
 
