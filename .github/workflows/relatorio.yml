@@ -1,0 +1,59 @@
+name: Gerar Relatório de FIIs
+
+on:
+  schedule:
+    - cron: '0 11 * * 1-5'  # Seg-Sex às 8h (horário de Brasília)
+  workflow_dispatch:  # Permite rodar manualmente
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  gerar-relatorio:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Restaurar cache de meses
+        uses: actions/cache@v4
+        with:
+          path: cache_meses.csv
+          key: cache-meses-${{ github.run_id }}
+          restore-keys: cache-meses-
+
+      - name: Gerar relatório
+        run: node pvp-fiis.js
+
+      - name: Preparar para deploy
+        run: |
+          mkdir -p _site
+          cp relatorios/*.html _site/
+          LATEST=$(ls -t relatorios/*.html | head -1)
+          cp "$LATEST" _site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: gerar-relatorio
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
