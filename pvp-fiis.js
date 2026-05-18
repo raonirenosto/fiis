@@ -148,6 +148,86 @@ async function processarFii(ticker) {
 const https = require("https")
 const agentSemSSL = new https.Agent({ rejectUnauthorized: false })
 
+const MAPA_CNPJ = {
+    'FATN11': '30.567.216/0001-02',
+    'PMLL11': '26.499.833/0001-32',
+    'TRXF11': '36.368.925/0001-37',
+    'GARE11': '37.295.919/0001-60',
+    'VISC11': '17.554.274/0001-25',
+    'XPLG11': '26.502.794/0001-85',
+    'KNRI11': '12.005.956/0001-65',
+    'TGAR11': '25.032.881/0001-53',
+    'HGLG11': '11.728.688/0001-47',
+    'XPML11': '28.757.546/0001-00',
+    'BRCO11': '48.916.699/0001-60',
+    'HGRU11': '29.641.226/0001-53',
+    'BTLG11': '11.839.593/0001-09'
+}
+
+let dadosCVM = null
+
+async function carregarCVM() {
+
+    if (dadosCVM) return dadosCVM
+
+    const ano = new Date().getFullYear()
+    const url = `https://dados.cvm.gov.br/dados/FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_${ano}.zip`
+
+    console.log("📊 Baixando dados CVM...")
+
+    const r = await axios.get(url, { httpsAgent: agentSemSSL, responseType: 'arraybuffer' })
+
+    const zipPath = path.resolve(__dirname, 'temp_cvm.zip')
+    fs.writeFileSync(zipPath, r.data)
+
+    const { execSync } = require('child_process')
+    execSync(`tar -xf "${zipPath}"`, { cwd: __dirname })
+
+    const geral = fs.readFileSync(path.resolve(__dirname, `inf_mensal_fii_geral_${ano}.csv`), 'utf-8')
+    const ap = fs.readFileSync(path.resolve(__dirname, `inf_mensal_fii_ativo_passivo_${ano}.csv`), 'utf-8')
+
+    const geralLinhas = geral.split('\n')
+    const apLinhas = ap.split('\n')
+    const geralHeader = geralLinhas[0].split(';')
+    const apHeader = apLinhas[0].split(';')
+
+    dadosCVM = { geralLinhas, apLinhas, geralHeader, apHeader }
+    return dadosCVM
+}
+
+async function calcularPVP(ticker, preco) {
+
+    const cnpj = MAPA_CNPJ[ticker.toUpperCase()]
+    if (!cnpj) return null
+
+    const { geralLinhas, apLinhas, geralHeader, apHeader } = await carregarCVM()
+
+    const iCotas = geralHeader.indexOf('Quantidade_Cotas_Emitidas')
+    const iNecessidades = apHeader.indexOf('Total_Necessidades_Liquidez')
+    const iInvestido = apHeader.indexOf('Total_Investido')
+    const iReceber = apHeader.indexOf('Valores_Receber')
+    const iPassivo = apHeader.findIndex(h => h.includes('Total_Passivo'))
+
+    const geralMatch = geralLinhas.filter(l => l.includes(cnpj))
+    const apMatch = apLinhas.filter(l => l.includes(cnpj))
+
+    if (!geralMatch.length || !apMatch.length) return null
+
+    const gCols = geralMatch[geralMatch.length - 1].split(';')
+    const aCols = apMatch[apMatch.length - 1].split(';')
+
+    const cotas = parseFloat(gCols[iCotas])
+    const necessidades = parseFloat(aCols[iNecessidades]) || 0
+    const investido = parseFloat(aCols[iInvestido]) || 0
+    const receber = parseFloat(aCols[iReceber]) || 0
+    const passivo = parseFloat(aCols[iPassivo]) || 0
+
+    const pl = necessidades + investido + receber - passivo
+    const vpCota = pl / cotas
+
+    return preco / vpCota
+}
+
 async function processarFiiMfinance(ticker) {
 
     try {
@@ -161,11 +241,14 @@ async function processarFiiMfinance(ticker) {
         const dividendos = dividendosRes.data.dividends || []
         const ultimoDiv = dividendos[dividendos.length - 1]
 
+        const preco = dados.lastPrice
+        const pvp = await calcularPVP(ticker, preco)
+
         return {
             ticker,
-            precoAtual: dados.lastPrice.toFixed(2).replace(".", ","),
-            pvpTexto: "-",
-            pvpNumero: null,
+            precoAtual: preco.toFixed(2).replace(".", ","),
+            pvpTexto: pvp ? pvp.toFixed(2).replace(".", ",") : "-",
+            pvpNumero: pvp,
             dy: dados.dividendYield.toFixed(2).replace(".", ",") + "%",
             ultimoProvento: ultimoDiv ? ultimoDiv.value.toFixed(2).replace(".", ",") : "0,00"
         }
