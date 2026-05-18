@@ -407,9 +407,121 @@ async function buscarRendimentosPuppeteer(browser, ticker) {
 // 🚀 ANALISAR FIIs
 // ===============================
 
-async function analisarFiis(listaFiis) {
+async function analisarFiis(listaFiis, opcoes) {
 
     if (!listaFiis) return []
+
+    const semCache = opcoes?.semCache || false
+
+    if (semCache) {
+        return await analisarSemCache(listaFiis)
+    }
+
+    return await analisarComCache(listaFiis)
+}
+
+async function analisarSemCache(listaFiis) {
+
+    const resultados = []
+    const precisaPuppeteer = []
+
+    for (const ticker of listaFiis) {
+
+        try {
+
+            const rendimentos = await buscarRendimentosApi(ticker)
+            const resultado = calcularMesesSemQuebra(rendimentos)
+
+            if (resultado.quebra) {
+
+                console.log(`🌐 ${ticker} — ${resultado.meses} meses (API, quebra: ${resultado.quebra})`)
+
+                resultados.push({
+                    ticker,
+                    meses: resultado.meses,
+                    quebra: resultado.quebra,
+                    totalRendimentos: rendimentos.length
+                })
+
+            } else {
+
+                precisaPuppeteer.push(ticker)
+            }
+
+        } catch (e) {
+
+            precisaPuppeteer.push(ticker)
+        }
+    }
+
+    if (precisaPuppeteer.length > 0) {
+
+        console.log(`⏳ ${precisaPuppeteer.length} FIIs precisam de histórico completo (Puppeteer)...`)
+
+        let browser = null
+
+        try {
+
+            browser = await puppeteer.launch({
+                headless: true,
+                ignoreHTTPSErrors: true,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-web-security",
+                    "--disable-features=IsolateOrigins",
+                    "--disable-blink-features=AutomationControlled",
+                    "--window-position=-2400,-2400"
+                ]
+            })
+
+            for (const ticker of precisaPuppeteer) {
+
+                try {
+
+                    console.log(`🔍 ${ticker} (Puppeteer)...`)
+
+                    const historico = await buscarRendimentosPuppeteer(browser, ticker)
+                    const resultado = calcularMesesSemQuebra(historico)
+
+                    const info = resultado.quebra ? `(quebra: ${resultado.quebra})` : "(sem quebra)"
+                    console.log(`✅ ${ticker} — ${resultado.meses} meses ${info}`)
+
+                    resultados.push({
+                        ticker,
+                        meses: resultado.meses,
+                        quebra: resultado.quebra,
+                        totalRendimentos: historico.length
+                    })
+
+                } catch (e) {
+
+                    console.log(`❌ ${ticker}: ${e.message}`)
+                    resultados.push({ ticker, erro: true, mensagem: e.message })
+                }
+
+                await new Promise(function(r) {
+                    setTimeout(r, 4000)
+                })
+            }
+
+        } finally {
+
+            if (browser) {
+                try { await browser.close() } catch (_) {}
+            }
+        }
+    }
+
+    resultados.sort(function(a, b) {
+        return (b.meses || 0) - (a.meses || 0)
+    })
+
+    return resultados
+}
+
+async function analisarComCache(listaFiis) {
 
     const cache = carregarCache()
     const resultados = []
