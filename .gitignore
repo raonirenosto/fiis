@@ -2,6 +2,8 @@ resultado.html
 relatorios/
 dados.csv
 cache_meses.csv
+temp_cvm.zip
+inf_mensal_fii_*.csv
 node_modules/
 
 # IntelliJ

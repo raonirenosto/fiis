@@ -30,12 +30,40 @@ node pvp-fiis.js --sem-meses
 
 Gera o relatório sem a coluna "Meses Rend." — útil quando quer apenas os dados básicos rapidamente.
 
+### Modo mfinance (APIs públicas)
+
+```bash
+node pvp-fiis.js --mfinance
+```
+
+Usa a API da [mfinance](https://mfinance.com.br) para preço e DY, e dados da [CVM](https://dados.cvm.gov.br) para P/VP. Funciona em servidores cloud (GitHub Actions) sem bloqueio de IP.
+
+**Limitação:** os dividendos da mfinance têm ~3 meses de atraso, afetando as colunas Último Provento, DY Mensal, DY Anual, rendimentos estimados e Meses Rend.
+
 ### Cache de meses de rendimento
 
 Na primeira execução, utiliza a API do Status Invest e Puppeteer para coletar o histórico completo. Os dados são salvos em cache (`cache_meses.csv`) e nas execuções seguintes apenas os meses novos são verificados via API — sem necessidade de recarregar todo o histórico.
 
 **Primeira execução:** mais lenta (Puppeteer para FIIs sem quebra recente).
 **Execuções seguintes:** instantânea (cache + verificação incremental via API).
+
+### Flags disponíveis
+
+| Flag | Descrição |
+|------|-----------|
+| `--sem-meses` | Omite a coluna "Meses Rend." |
+| `--sem-cache` | Busca tudo direto do site, sem usar cache |
+| `--mfinance` | Usa mfinance + CVM ao invés do Status Invest |
+
+## GitHub Actions
+
+O relatório é gerado automaticamente via GitHub Actions e publicado no GitHub Pages:
+
+- **Horários:** seg-sex às 8h e 18h (horário de Brasília)
+- **Execução manual:** disponível na aba Actions do repositório
+- **URL:** [https://raonirenosto.github.io/fiis/](https://raonirenosto.github.io/fiis/)
+
+O workflow usa `--mfinance` para evitar bloqueio de IP em servidores cloud.
 
 ## Arquivos de configuração
 
