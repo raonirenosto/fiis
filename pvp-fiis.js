@@ -76,7 +76,7 @@ function lerExcluidos() {
 }
 
 // ===============================
-// 🌐 PROCESSAR FII
+// 🌐 PROCESSAR FII (Status Invest)
 // ===============================
 
 async function processarFii(ticker) {
@@ -139,6 +139,115 @@ async function processarFii(ticker) {
 
         return null
     }
+}
+
+// ===============================
+// 🌐 PROCESSAR FII (mfinance)
+// ===============================
+
+async function processarFiiMfinance(ticker) {
+
+    try {
+
+        const [dadosRes, dividendosRes] = await Promise.all([
+            axios.get(`https://mfinance.com.br/api/v1/fiis/${ticker}`),
+            axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`)
+        ])
+
+        const dados = dadosRes.data
+        const dividendos = dividendosRes.data.dividends || []
+        const ultimoDiv = dividendos[dividendos.length - 1]
+
+        return {
+            ticker,
+            precoAtual: dados.lastPrice.toFixed(2).replace(".", ","),
+            pvpTexto: "-",
+            pvpNumero: null,
+            dy: dados.dividendYield.toFixed(2).replace(".", ",") + "%",
+            ultimoProvento: ultimoDiv ? ultimoDiv.value.toFixed(2).replace(".", ",") : "0,00"
+        }
+
+    } catch (e) {
+
+        console.log("Erro:", ticker)
+        return null
+    }
+}
+
+// ===============================
+// 📊 MESES DE RENDIMENTO (mfinance)
+// ===============================
+
+async function analisarMesesMfinance(listaFiis) {
+
+    const resultados = []
+
+    for (const ticker of listaFiis) {
+
+        try {
+
+            const res = await axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`)
+            const dividendos = res.data.dividends || []
+
+            // Inverter para mais recente primeiro
+            const rendimentos = dividendos.reverse().map(d => ({
+                data: d.declaredDate.split("T")[0],
+                valor: d.value
+            }))
+
+            const resultado = calcularMesesSemQuebraMfinance(rendimentos)
+
+            const info = resultado.quebra ? `quebra: ${resultado.quebra}` : "sem quebra"
+            console.log(`🌐 ${ticker} — ${resultado.meses} meses (mfinance, ${info})`)
+
+            resultados.push({
+                ticker,
+                meses: resultado.meses,
+                quebra: resultado.quebra
+            })
+
+        } catch (e) {
+
+            console.log(`❌ ${ticker}: ${e.message}`)
+            resultados.push({ ticker, erro: true })
+        }
+    }
+
+    return resultados
+}
+
+function calcularMesesSemQuebraMfinance(rendimentos) {
+
+    if (rendimentos.length < 3) {
+        return { meses: rendimentos.length, quebra: null }
+    }
+
+    let meses = 1
+
+    for (let i = 0; i < rendimentos.length - 2; i++) {
+
+        const atual = rendimentos[i]
+        const proximo = rendimentos[i + 1]
+        const depois = rendimentos[i + 2]
+
+        if (atual.valor >= proximo.valor) {
+            meses++
+            continue
+        }
+
+        const ehPicoTemporario =
+            proximo.valor > atual.valor
+            && depois.valor <= atual.valor
+
+        if (ehPicoTemporario) {
+            meses++
+            continue
+        }
+
+        return { meses, quebra: proximo.data }
+    }
+
+    return { meses: rendimentos.length, quebra: null }
 }
 
 // ===============================
@@ -703,6 +812,7 @@ async function main() {
     const args = process.argv.slice(2)
     const semMeses = args.includes("--sem-meses")
     const semCache = args.includes("--sem-cache")
+    const usarMfinance = args.includes("--mfinance")
 
     const fiis = lerFiis()
 
@@ -715,7 +825,9 @@ async function main() {
 
     for (const fii of fiis) {
 
-        const d = await processarFii(fii)
+        const d = usarMfinance
+            ? await processarFiiMfinance(fii)
+            : await processarFii(fii)
 
         if (d) {
             resultados.push(d)
@@ -728,9 +840,9 @@ async function main() {
             r.dy?.replace("%", "").replace(",", ".")
         )
 
-        let score =
-            (dy / 100) * 0.7 +
-            (1 / r.pvpNumero) * 0.3
+        let score = r.pvpNumero
+            ? (dy / 100) * 0.7 + (1 / r.pvpNumero) * 0.3
+            : (dy / 100)
 
         if (excluidos.has(r.ticker.toUpperCase())) {
             score = 0
@@ -745,7 +857,9 @@ async function main() {
 
         console.log("📈 Analisando meses de rendimento...")
 
-        const mesesResultados = await analisarFiis(fiis, { semCache })
+        const mesesResultados = usarMfinance
+            ? await analisarMesesMfinance(fiis)
+            : await analisarFiis(fiis, { semCache })
 
         const mapaMeses = {}
 
