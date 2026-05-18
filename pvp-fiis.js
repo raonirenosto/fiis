@@ -145,13 +145,16 @@ async function processarFii(ticker) {
 // 🌐 PROCESSAR FII (mfinance)
 // ===============================
 
+const https = require("https")
+const agentSemSSL = new https.Agent({ rejectUnauthorized: false })
+
 async function processarFiiMfinance(ticker) {
 
     try {
 
         const [dadosRes, dividendosRes] = await Promise.all([
-            axios.get(`https://mfinance.com.br/api/v1/fiis/${ticker}`),
-            axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`)
+            axios.get(`https://mfinance.com.br/api/v1/fiis/${ticker}`, { httpsAgent: agentSemSSL }),
+            axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`, { httpsAgent: agentSemSSL })
         ])
 
         const dados = dadosRes.data
@@ -186,7 +189,9 @@ async function analisarMesesMfinance(listaFiis) {
 
         try {
 
-            const res = await axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`)
+            await new Promise(r => setTimeout(r, 1000))
+
+            const res = await axios.get(`https://mfinance.com.br/api/v1/fiis/dividends/${ticker}`, { httpsAgent: agentSemSSL })
             const dividendos = res.data.dividends || []
 
             // Inverter para mais recente primeiro
@@ -824,6 +829,10 @@ async function main() {
     const resultados = []
 
     for (const fii of fiis) {
+
+        if (usarMfinance) {
+            await new Promise(r => setTimeout(r, 1000))
+        }
 
         const d = usarMfinance
             ? await processarFiiMfinance(fii)
