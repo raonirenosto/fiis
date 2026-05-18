@@ -181,7 +181,13 @@ async function carregarCVM() {
     fs.writeFileSync(zipPath, r.data)
 
     const { execSync } = require('child_process')
-    execSync(`tar -xf "${zipPath}"`, { cwd: __dirname })
+
+    const isWindows = process.platform === 'win32'
+    if (isWindows) {
+        execSync(`tar -xf "${zipPath}"`, { cwd: __dirname })
+    } else {
+        execSync(`unzip -o "${zipPath}"`, { cwd: __dirname })
+    }
 
     const geral = fs.readFileSync(path.resolve(__dirname, `inf_mensal_fii_geral_${ano}.csv`), 'utf-8')
     const ap = fs.readFileSync(path.resolve(__dirname, `inf_mensal_fii_ativo_passivo_${ano}.csv`), 'utf-8')
