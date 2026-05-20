@@ -267,6 +267,110 @@ async function processarFiiMfinance(ticker) {
 }
 
 // ===============================
+// 🌐 PROCESSAR FII (Investidor10)
+// ===============================
+
+async function processarFiiInvestidor10(ticker) {
+
+    try {
+
+        const url = `https://investidor10.com.br/fiis/${ticker.toLowerCase()}/`
+        const r = await axios.get(url, { httpsAgent: agentSemSSL, headers: { 'User-Agent': 'Mozilla/5.0' } })
+        const $ = cheerio.load(r.data)
+
+        let pvp = null, dy = null, preco = null
+
+        preco = $('div._card.cotacao .value').first().text().trim()
+
+        $('[class*=cell]').each((i, el) => {
+            const text = $(el).text().replace(/\s+/g, ' ').trim()
+            const pvpM = text.match(/P\/VP\s*:\s*([\d.,]+)/)
+            if (pvpM) pvp = pvpM[1]
+            const dyM = text.match(/DY\s*\(12M\)\s*:\s*([\d.,]+%)/)
+            if (dyM) dy = dyM[1]
+        })
+
+        const urlDiv = `https://investidor10.com.br/fiis/${ticker.toLowerCase()}/dividendos/`
+        const r2 = await axios.get(urlDiv, { httpsAgent: agentSemSSL, headers: { 'User-Agent': 'Mozilla/5.0' } })
+        const $2 = cheerio.load(r2.data)
+
+        let ultimoProvento = null
+        $2('table').each((i, table) => {
+            $2(table).find('tr').each((j, tr) => {
+                const cols = $2(tr).find('td').map((k, td) => $2(td).text().trim()).get()
+                if (cols.length >= 4 && cols[0].toLowerCase().includes('dividendo') && !ultimoProvento) {
+                    ultimoProvento = cols[3]
+                }
+            })
+        })
+
+        const precoLimpo = preco.replace('R$', '').trim()
+
+        return {
+            ticker,
+            precoAtual: precoLimpo,
+            pvpTexto: pvp || "-",
+            pvpNumero: pvp ? parseFloat(pvp.replace(',', '.')) : null,
+            dy: dy || "-",
+            ultimoProvento: ultimoProvento || "0,00"
+        }
+
+    } catch (e) {
+
+        console.log("Erro:", ticker)
+        return null
+    }
+}
+
+async function analisarMesesInvestidor10(listaFiis) {
+
+    const resultados = []
+
+    for (const ticker of listaFiis) {
+
+        try {
+
+            await new Promise(r => setTimeout(r, 1500))
+
+            const urlDiv = `https://investidor10.com.br/fiis/${ticker.toLowerCase()}/dividendos/`
+            const r2 = await axios.get(urlDiv, { httpsAgent: agentSemSSL, headers: { 'User-Agent': 'Mozilla/5.0' } })
+            const $ = cheerio.load(r2.data)
+
+            const rendimentos = []
+            $('table').each((i, table) => {
+                $(table).find('tr').each((j, tr) => {
+                    const cols = $(tr).find('td').map((k, td) => $(td).text().trim()).get()
+                    if (cols.length >= 4 && cols[0].toLowerCase().includes('dividendo')) {
+                        rendimentos.push({
+                            data: cols[1],
+                            valor: parseFloat(cols[3].replace(/\./g, '').replace(',', '.'))
+                        })
+                    }
+                })
+            })
+
+            const resultado = calcularMesesSemQuebraMfinance(rendimentos)
+
+            const info = resultado.quebra ? `quebra: ${resultado.quebra}` : "sem quebra"
+            console.log(`🌐 ${ticker} — ${resultado.meses} meses (investidor10, ${info})`)
+
+            resultados.push({
+                ticker,
+                meses: resultado.meses,
+                quebra: resultado.quebra
+            })
+
+        } catch (e) {
+
+            console.log(`❌ ${ticker}: ${e.message}`)
+            resultados.push({ ticker, erro: true })
+        }
+    }
+
+    return resultados
+}
+
+// ===============================
 // 📊 MESES DE RENDIMENTO (mfinance)
 // ===============================
 
@@ -907,6 +1011,7 @@ async function main() {
     const semMeses = args.includes("--sem-meses")
     const semCache = args.includes("--sem-cache")
     const usarMfinance = args.includes("--mfinance")
+    const usarInvestidor10 = args.includes("--investidor10")
 
     const fiis = lerFiis()
 
@@ -919,13 +1024,18 @@ async function main() {
 
     for (const fii of fiis) {
 
-        if (usarMfinance) {
-            await new Promise(r => setTimeout(r, 1000))
+        if (usarMfinance || usarInvestidor10) {
+            await new Promise(r => setTimeout(r, 1500))
         }
 
-        const d = usarMfinance
-            ? await processarFiiMfinance(fii)
-            : await processarFii(fii)
+        let d = null
+        if (usarInvestidor10) {
+            d = await processarFiiInvestidor10(fii)
+        } else if (usarMfinance) {
+            d = await processarFiiMfinance(fii)
+        } else {
+            d = await processarFii(fii)
+        }
 
         if (d) {
             resultados.push(d)
@@ -955,9 +1065,11 @@ async function main() {
 
         console.log("📈 Analisando meses de rendimento...")
 
-        const mesesResultados = usarMfinance
-            ? await analisarMesesMfinance(fiis)
-            : await analisarFiis(fiis, { semCache })
+        const mesesResultados = usarInvestidor10
+            ? await analisarMesesInvestidor10(fiis)
+            : usarMfinance
+                ? await analisarMesesMfinance(fiis)
+                : await analisarFiis(fiis, { semCache })
 
         const mapaMeses = {}
 
