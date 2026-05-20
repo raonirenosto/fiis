@@ -664,6 +664,10 @@ ${comMeses ? `<td>${r.mesesRendimento ?? "-"}</td>` : ""}
 <head>
 
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4a90e2">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
