@@ -29,8 +29,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: cache_meses.csv
-          key: cache-meses-${{ github.run_id }}
-          restore-keys: cache-meses-
+          key: cache-meses-v2-${{ github.run_id }}
+          restore-keys: cache-meses-v2-
 
       - name: Gerar relatório
         run: node pvp-fiis.js --investidor10
