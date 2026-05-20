@@ -54,6 +54,7 @@ Na primeira execução, utiliza a API do Status Invest e Puppeteer para coletar 
 | `--sem-meses` | Omite a coluna "Meses Rend." |
 | `--sem-cache` | Busca tudo direto do site, sem usar cache |
 | `--mfinance` | Usa mfinance + CVM ao invés do Status Invest |
+| `--investidor10` | Usa Investidor10 (dados completos e atualizados, sem bloqueio de IP) |
 
 ## GitHub Actions
 
@@ -63,7 +64,14 @@ O relatório é gerado automaticamente via GitHub Actions e publicado no GitHub 
 - **Execução manual:** disponível na aba Actions do repositório
 - **URL:** [https://raonirenosto.github.io/fiis/](https://raonirenosto.github.io/fiis/)
 
-O workflow usa `--mfinance` para evitar bloqueio de IP em servidores cloud.
+O workflow usa `--investidor10` para evitar bloqueio de IP em servidores cloud.
+
+## Instalação no celular (PWA)
+
+O relatório online pode ser instalado como app no celular:
+
+- **Android (Chrome):** Menu (3 pontinhos) → "Adicionar à tela inicial"
+- **iPhone (Safari):** Botão compartilhar → "Adicionar à Tela de Início"
 
 ## Arquivos de configuração
 
