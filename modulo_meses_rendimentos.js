@@ -743,4 +743,4 @@ async function analisarComCache(listaFiis) {
     return resultados
 }
 
-module.exports = { analisarFiis }
+module.exports = { analisarFiis, carregarCache, salvarCache, agora, calcularMesesPassados }

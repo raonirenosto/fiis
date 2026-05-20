@@ -3,7 +3,7 @@ const cheerio = require("cheerio")
 const fs = require("fs")
 const { exec } = require("child_process")
 const path = require("path")
-const { analisarFiis } = require("./modulo_meses_rendimentos")
+const { analisarFiis, carregarCache, salvarCache, agora, calcularMesesPassados } = require("./modulo_meses_rendimentos")
 
 // ===============================
 // 📥 LER FIIs
@@ -324,9 +324,110 @@ async function processarFiiInvestidor10(ticker) {
 
 async function analisarMesesInvestidor10(listaFiis) {
 
+    const cache = carregarCache()
     const resultados = []
+    const precisaBuscar = []
 
+    const mesAtual = new Date().getMonth() + 1
+    const anoAtual = new Date().getFullYear()
+
+    // Fase 1: cache
     for (const ticker of listaFiis) {
+
+        const cached = cache[ticker.toUpperCase()]
+
+        if (cached) {
+
+            let cacheAtualizado = false
+
+            if (cached.atualizadoEm) {
+                const partes = cached.atualizadoEm.split(" ")[0].split("/")
+                const mesCached = parseInt(partes[1])
+                const anoCached = parseInt(partes[2])
+                cacheAtualizado = (mesCached === mesAtual && anoCached === anoAtual)
+            }
+
+            if (cacheAtualizado) {
+
+                const info = cached.quebra ? `quebra: ${cached.quebra}` : "sem quebra"
+                console.log(`💾 ${ticker} — ${cached.meses} meses (cache, ${info})`)
+
+                resultados.push({ ticker, meses: cached.meses, quebra: cached.quebra })
+
+            } else {
+
+                // Cache desatualizado — verificar incrementalmente
+                try {
+
+                    await new Promise(r => setTimeout(r, 1500))
+
+                    const urlDiv = `https://investidor10.com.br/fiis/${ticker.toLowerCase()}/dividendos/`
+                    const r2 = await axios.get(urlDiv, { httpsAgent: agentSemSSL, headers: { 'User-Agent': 'Mozilla/5.0' } })
+                    const $ = cheerio.load(r2.data)
+
+                    // Pegar só os rendimentos mais recentes para verificar quebra
+                    const rendimentosRecentes = []
+                    $('table').each((i, table) => {
+                        $(table).find('tr').each((j, tr) => {
+                            const cols = $(tr).find('td').map((k, td) => $(td).text().trim()).get()
+                            if (cols.length >= 4 && cols[0].toLowerCase().includes('dividendo')) {
+                                rendimentosRecentes.push({
+                                    data: cols[1],
+                                    valor: parseFloat(cols[3].replace(/\./g, '').replace(',', '.'))
+                                })
+                            }
+                        })
+                    })
+
+                    const resultado = calcularMesesSemQuebraMfinance(rendimentosRecentes)
+
+                    if (resultado.quebra) {
+
+                        console.log(`🔄 ${ticker} — ${resultado.meses} meses (atualizado, quebra: ${resultado.quebra})`)
+
+                        cache[ticker.toUpperCase()] = {
+                            meses: resultado.meses,
+                            quebra: resultado.quebra,
+                            atualizadoEm: agora()
+                        }
+
+                        resultados.push({ ticker, meses: resultado.meses, quebra: resultado.quebra })
+
+                    } else {
+
+                        // Sem quebra — incrementar meses com base no tempo passado
+                        const mesesPassados = calcularMesesPassados(cached.atualizadoEm)
+                        const novosMeses = cached.meses + mesesPassados
+
+                        console.log(`🔄 ${ticker} — ${novosMeses} meses (atualizado, +${mesesPassados} meses, sem quebra)`)
+
+                        cache[ticker.toUpperCase()] = {
+                            meses: novosMeses,
+                            quebra: null,
+                            atualizadoEm: agora()
+                        }
+
+                        resultados.push({ ticker, meses: novosMeses, quebra: null })
+                    }
+
+                } catch (e) {
+
+                    // Falha — usa cache antigo
+                    const info = cached.quebra ? `quebra: ${cached.quebra}` : "sem quebra"
+                    console.log(`⚠️ ${ticker} — ${cached.meses} meses (cache antigo, falha ao atualizar)`)
+
+                    resultados.push({ ticker, meses: cached.meses, quebra: cached.quebra })
+                }
+            }
+
+        } else {
+
+            precisaBuscar.push(ticker)
+        }
+    }
+
+    // Fase 2: buscar do Investidor10 (FIIs sem cache)
+    for (const ticker of precisaBuscar) {
 
         try {
 
@@ -354,11 +455,13 @@ async function analisarMesesInvestidor10(listaFiis) {
             const info = resultado.quebra ? `quebra: ${resultado.quebra}` : "sem quebra"
             console.log(`🌐 ${ticker} — ${resultado.meses} meses (investidor10, ${info})`)
 
-            resultados.push({
-                ticker,
+            cache[ticker.toUpperCase()] = {
                 meses: resultado.meses,
-                quebra: resultado.quebra
-            })
+                quebra: resultado.quebra,
+                atualizadoEm: agora()
+            }
+
+            resultados.push({ ticker, meses: resultado.meses, quebra: resultado.quebra })
 
         } catch (e) {
 
@@ -366,6 +469,8 @@ async function analisarMesesInvestidor10(listaFiis) {
             resultados.push({ ticker, erro: true })
         }
     }
+
+    salvarCache(cache)
 
     return resultados
 }
