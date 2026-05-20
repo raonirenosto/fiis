@@ -33,7 +33,7 @@ jobs:
           restore-keys: cache-meses-
 
       - name: Gerar relatório
-        run: node pvp-fiis.js --mfinance
+        run: node pvp-fiis.js --investidor10
 
       - name: Preparar para deploy
         run: |
