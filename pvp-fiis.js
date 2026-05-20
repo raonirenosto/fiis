@@ -922,22 +922,10 @@ ${linhas}
 </div>
 
 <div class="data-geracao">
-    Gerado em:
-    <span id="dataGeracao"></span>
+    Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}
 </div>
 
 <script>
-
-function atualizarDataGeracao(){
-
-    const agora = new Date()
-
-    const data = agora.toLocaleDateString("pt-BR")
-    const hora = agora.toLocaleTimeString("pt-BR")
-
-    document.getElementById("dataGeracao").innerText =
-        data + " às " + hora
-}
 
 function exportarPDF(){
 
@@ -1066,8 +1054,6 @@ function toggleCores(){
 
     legenda.style.display = ativo ? "block" : "none"
 }
-
-atualizarDataGeracao()
 
 </script>
 
