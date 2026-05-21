@@ -845,6 +845,25 @@ tr:nth-child(odd){
     background:#ffffff !important;
 }
 
+.pull-indicator{
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    text-align:center;
+    padding:10px;
+    background:#4a90e2;
+    color:white;
+    font-size:14px;
+    transform:translateY(-100%);
+    transition:transform 0.3s;
+    z-index:9999;
+}
+
+.pull-indicator.show{
+    transform:translateY(0);
+}
+
 .data-geracao{
     max-width:1300px;
     width:100%;
@@ -859,6 +878,8 @@ tr:nth-child(odd){
 </head>
 
 <body>
+
+<div class="pull-indicator" id="pullIndicator">Atualizando...</div>
 
 <div class="topo">
 
@@ -941,6 +962,32 @@ ${linhas}
 </div>
 
 <script>
+
+// Pull-to-refresh
+let startY = 0
+let pulling = false
+
+document.addEventListener('touchstart', function(e) {
+    if (window.scrollY === 0) {
+        startY = e.touches[0].clientY
+        pulling = true
+    }
+})
+
+document.addEventListener('touchmove', function(e) {
+    if (!pulling) return
+    const diff = e.touches[0].clientY - startY
+    if (diff > 120) {
+        pulling = false
+        const indicator = document.getElementById('pullIndicator')
+        indicator.classList.add('show')
+        setTimeout(function() { location.reload() }, 500)
+    }
+})
+
+document.addEventListener('touchend', function() {
+    pulling = false
+})
 
 function exportarPDF(){
 
