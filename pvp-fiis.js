@@ -676,40 +676,38 @@ ${comMeses ? `<td>${r.mesesRendimento ?? "-"}</td>` : ""}
 body{
     font-family:Arial;
     background:#f4f8ff;
-    padding:40px;
+    padding:20px;
 }
 
 .topo{
-    width:1300px;
-    margin:auto auto 25px auto;
-    position:relative;
+    max-width:1300px;
+    width:100%;
+    margin:0 auto 25px auto;
 }
 
 h1{
     text-align:center;
-    margin:0;
-    font-size:36px;
+    margin:0 0 15px 0;
+    font-size:clamp(22px, 5vw, 36px);
+}
+
+.barra-acoes{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:15px;
+    flex-wrap:wrap;
 }
 
 .btn-pdf{
-    position:absolute;
-    right:0;
-    top:50%;
-    transform:translateY(-50%);
-
     width:42px;
     height:42px;
-
     border:none;
     border-radius:10px;
-
     background:#e53935;
     color:white;
-
     cursor:pointer;
-
     font-size:20px;
-
     display:flex;
     align-items:center;
     justify-content:center;
@@ -719,22 +717,34 @@ h1{
     opacity:0.9;
 }
 
+.tabela-container{
+    max-width:1300px;
+    width:100%;
+    margin:0 auto;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+}
+
 table{
     border-collapse:collapse;
-    width:1300px;
-    margin:auto;
+    width:100%;
+    min-width:900px;
 }
 
 th{
     background:#4a90e2;
     color:white;
-    padding:12px;
+    padding:10px 8px;
     cursor:pointer;
+    white-space:nowrap;
+    font-size:clamp(11px, 1.5vw, 14px);
 }
 
 td{
-    padding:10px;
+    padding:8px 6px;
     text-align:center;
+    white-space:nowrap;
+    font-size:clamp(11px, 1.5vw, 14px);
 }
 
 .seta{
@@ -775,12 +785,14 @@ tr:nth-child(odd){
 }
 
 .legenda{
-    width:1300px;
+    max-width:1300px;
+    width:100%;
     margin:30px auto 0 auto;
     background:white;
     padding:20px;
     border-radius:10px;
     box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    box-sizing:border-box;
 }
 
 .item-legenda{
@@ -813,10 +825,6 @@ tr:nth-child(odd){
 }
 
 .toggle-cores{
-    position:absolute;
-    right:60px;
-    top:50%;
-    transform:translateY(-50%);
     font-size:14px;
     cursor:pointer;
     user-select:none;
@@ -838,7 +846,8 @@ tr:nth-child(odd){
 }
 
 .data-geracao{
-    width:1300px;
+    max-width:1300px;
+    width:100%;
     margin:15px auto 0 auto;
     text-align:right;
     color:#666;
@@ -855,17 +864,22 @@ tr:nth-child(odd){
 
     <h1>Scanner de FIIs</h1>
 
-    <button class="btn-pdf" onclick="exportarPDF()" title="Exportar PDF">
-        📄
-    </button>
+    <div class="barra-acoes">
 
-    <label class="toggle-cores">
-        <input type="checkbox" id="checkCores" checked onchange="toggleCores()">
-        Cores por categoria
-    </label>
+        <label class="toggle-cores">
+            <input type="checkbox" id="checkCores" checked onchange="toggleCores()">
+            Cores por categoria
+        </label>
+
+        <button class="btn-pdf" onclick="exportarPDF()" title="Exportar PDF">
+            📄
+        </button>
+
+    </div>
 
 </div>
 
+<div class="tabela-container">
 <table id="tabelaFiis">
 
 <thead>
@@ -894,6 +908,7 @@ ${linhas}
 </tbody>
 
 </table>
+</div>
 
 <div class="legenda">
 
@@ -930,12 +945,11 @@ ${linhas}
 function exportarPDF(){
 
     const botao = document.querySelector(".btn-pdf")
-    const toggle = document.querySelector(".toggle-cores")
     const legenda = document.querySelector(".legenda")
     const coresAtivas = document.getElementById("checkCores").checked
 
     botao.style.display = "none"
-    toggle.style.display = "none"
+    document.querySelector(".barra-acoes").style.display = "none"
 
     if(!coresAtivas){
         legenda.style.display = "none"
@@ -970,7 +984,7 @@ function exportarPDF(){
         .then(() => {
 
             botao.style.display = "flex"
-            toggle.style.display = "block"
+            document.querySelector(".barra-acoes").style.display = "flex"
 
             if(!coresAtivas){
                 legenda.style.display = "none"
