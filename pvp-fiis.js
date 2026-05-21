@@ -922,7 +922,7 @@ ${linhas}
 </div>
 
 <div class="data-geracao">
-    Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}
+    Gerado em: ${new Date().toLocaleDateString("pt-BR", {timeZone: "America/Sao_Paulo"})} às ${new Date().toLocaleTimeString("pt-BR", {timeZone: "America/Sao_Paulo"})}
 </div>
 
 <script>
