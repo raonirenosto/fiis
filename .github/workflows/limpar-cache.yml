@@ -3,6 +3,9 @@ name: Limpar Cache de Meses
 on:
   workflow_dispatch:
 
+permissions:
+  actions: write
+
 jobs:
   limpar-cache:
     runs-on: ubuntu-latest
