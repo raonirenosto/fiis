@@ -1,0 +1,17 @@
+name: Limpar Cache de Meses
+
+on:
+  workflow_dispatch:
+
+jobs:
+  limpar-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deletar caches de meses
+        run: |
+          gh cache list --repo ${{ github.repository }} --key cache-meses-v2- --json id,key -q '.[].key' | while read key; do
+            echo "Deletando: $key"
+            gh cache delete "$key" --repo ${{ github.repository }}
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
